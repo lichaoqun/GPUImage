@@ -418,6 +418,7 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     }
 }
 
+/** 设置纹理参数 */
 -(void)setOutputTextureOptions:(GPUTextureOptions)outputTextureOptions
 {
     _outputTextureOptions = outputTextureOptions;

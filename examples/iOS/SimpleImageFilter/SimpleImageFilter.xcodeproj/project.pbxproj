@@ -208,12 +208,19 @@
 			attributes = {
 				LastUpgradeCheck = 0500;
 				ORGANIZATIONNAME = "Cell Phone";
+				TargetAttributes = {
+					BCB5E7E714E605A900701302 = {
+						DevelopmentTeam = G74HU5SJSU;
+						ProvisioningStyle = Manual;
+					};
+				};
 			};
 			buildConfigurationList = BCB5E7E214E605A900701302 /* Build configuration list for PBXProject "SimpleImageFilter" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = BCB5E7DD14E605A900701302;
@@ -375,10 +382,13 @@
 		BCB5E80A14E605A900701302 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = G74HU5SJSU;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "SimpleImageFilter/SimpleImageFilter-Prefix.pch";
 				INFOPLIST_FILE = "SimpleImageFilter/SimpleImageFilter-Info.plist";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = iOS_Dev_Provisioning_Profile;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
@@ -386,10 +396,13 @@
 		BCB5E80B14E605A900701302 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = G74HU5SJSU;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "SimpleImageFilter/SimpleImageFilter-Prefix.pch";
 				INFOPLIST_FILE = "SimpleImageFilter/SimpleImageFilter-Info.plist";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = iOS_Dev_Provisioning_Profile;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;

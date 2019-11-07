@@ -217,9 +217,10 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 
 #pragma mark -
 #pragma mark Rendering
-
+/** 根据提供的旋转枚举角度, 返回对应的纹理顶点数组 */
 + (const GLfloat *)textureCoordinatesForRotation:(GPUImageRotationMode)rotationMode;
 {
+    // - 没有旋转
     static const GLfloat noRotationTextureCoordinates[] = {
         0.0f, 0.0f,
         1.0f, 0.0f,
@@ -227,6 +228,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         1.0f, 1.0f,
     };
     
+    // - 向左旋转
     static const GLfloat rotateLeftTextureCoordinates[] = {
         1.0f, 0.0f,
         1.0f, 1.0f,
@@ -234,6 +236,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         0.0f, 1.0f,
     };
     
+    // - 向右旋转
     static const GLfloat rotateRightTextureCoordinates[] = {
         0.0f, 1.0f,
         0.0f, 0.0f,
@@ -241,6 +244,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         1.0f, 0.0f,
     };
     
+    // - 左右翻转
     static const GLfloat verticalFlipTextureCoordinates[] = {
         0.0f, 1.0f,
         1.0f, 1.0f,
@@ -248,6 +252,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         1.0f,  0.0f,
     };
     
+    // - 上下翻转
     static const GLfloat horizontalFlipTextureCoordinates[] = {
         1.0f, 0.0f,
         0.0f, 0.0f,
@@ -255,6 +260,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         0.0f,  1.0f,
     };
     
+    // - 左上角和右下角翻转
     static const GLfloat rotateRightVerticalFlipTextureCoordinates[] = {
         0.0f, 0.0f,
         0.0f, 1.0f,
@@ -262,6 +268,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         1.0f, 1.0f,
     };
 
+    // - 右上角和左下角翻转
     static const GLfloat rotateRightHorizontalFlipTextureCoordinates[] = {
         1.0f, 1.0f,
         1.0f, 0.0f,
@@ -269,6 +276,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         0.0f, 0.0f,
     };
 
+    // - 旋转 180°
     static const GLfloat rotate180TextureCoordinates[] = {
         1.0f, 1.0f,
         0.0f, 1.0f,
@@ -289,6 +297,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     }
 }
 
+/** 根据顶点数组, 渲染视图 */
 - (void)renderToTextureWithVertices:(const GLfloat *)vertices textureCoordinates:(const GLfloat *)textureCoordinates;
 {
     if (self.preventRendering)
@@ -297,6 +306,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         return;
     }
     
+    // - 激活 shaderProgram
     [GPUImageContext setActiveShaderProgram:filterProgram];
 
     outputFramebuffer = [[GPUImageContext sharedFramebufferCache] fetchFramebufferForSize:[self sizeOfFBO] textureOptions:self.outputTextureOptions onlyTexture:NO];
@@ -308,21 +318,26 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 
     [self setUniformsForProgramAtIndex:0];
     
+    // - 清除颜色信息
     glClearColor(backgroundColorRed, backgroundColorGreen, backgroundColorBlue, backgroundColorAlpha);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    // - 激活纹理单元
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, [firstInputFramebuffer texture]);
 	
 	glUniform1i(filterInputTextureUniform, 2);	
 
+    // - 设置顶点数据解析方式
     glVertexAttribPointer(filterPositionAttribute, 2, GL_FLOAT, 0, 0, vertices);
 	glVertexAttribPointer(filterTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, textureCoordinates);
     
+    // - 开始渲染
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     [firstInputFramebuffer unlock];
     
+    // - usingNextFrameForImageCapture 代表着输出的结果会被用于获取图像
     if (usingNextFrameForImageCapture)
     {
         dispatch_semaphore_signal(imageCaptureSemaphore);
