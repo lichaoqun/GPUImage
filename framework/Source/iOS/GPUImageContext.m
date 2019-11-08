@@ -8,6 +8,7 @@ extern dispatch_queue_attr_t GPUImageDefaultQueueAttribute(void);
 
 @interface GPUImageContext()
 {
+    // - key : shader; value : shader program 的封装
     NSMutableDictionary *shaderProgramCache;
     NSMutableArray *shaderProgramUsageHistory;
     EAGLSharegroup *_sharegroup;
@@ -32,23 +33,28 @@ static void *openGLESContextQueueKey;
 		return nil;
     }
 
+    // - openGLES 的渲染队列
 	openGLESContextQueueKey = &openGLESContextQueueKey;
     _contextQueue = dispatch_queue_create("com.sunsetlakesoftware.GPUImage.openGLESContextQueue", GPUImageDefaultQueueAttribute());
     
 #if OS_OBJECT_USE_OBJC
 	dispatch_queue_set_specific(_contextQueue, openGLESContextQueueKey, (__bridge void *)self, NULL);
 #endif
+    
+    // - 创建着色器缓存数组
     shaderProgramCache = [[NSMutableDictionary alloc] init];
     shaderProgramUsageHistory = [[NSMutableArray alloc] init];
     
     return self;
 }
 
+/** openGLES 绘制的队列的队列标识 */
 + (void *)contextKey {
 	return openGLESContextQueueKey;
 }
 
 // Based on Colin Wheeler's example here: http://cocoasamurai.blogspot.com/2011/04/singletons-your-doing-them-wrong.html
+/** context 单利对象 */
 + (GPUImageContext *)sharedImageProcessingContext;
 {
     static dispatch_once_t pred;
@@ -60,21 +66,23 @@ static void *openGLESContextQueueKey;
     return sharedImageProcessingContext;
 }
 
+/** 渲染的队列 */
 + (dispatch_queue_t)sharedContextQueue;
 {
     return [[self sharedImageProcessingContext] contextQueue];
 }
 
+/** 渲染的帧缓存 */
 + (GPUImageFramebufferCache *)sharedFramebufferCache;
 {
     return [[self sharedImageProcessingContext] framebufferCache];
 }
 
+/** 设置使用当前的上下文 */
 + (void)useImageProcessingContext;
 {
     [[GPUImageContext sharedImageProcessingContext] useAsCurrentContext];
 }
-
 - (void)useAsCurrentContext;
 {
     EAGLContext *imageProcessingContext = [self context];
@@ -84,12 +92,12 @@ static void *openGLESContextQueueKey;
     }
 }
 
+/** 使用某个 shaderProgram */
 + (void)setActiveShaderProgram:(GLProgram *)shaderProgram;
 {
     GPUImageContext *sharedContext = [GPUImageContext sharedImageProcessingContext];
     [sharedContext setContextShaderProgram:shaderProgram];
 }
-
 - (void)setContextShaderProgram:(GLProgram *)shaderProgram;
 {
     EAGLContext *imageProcessingContext = [self context];
@@ -105,6 +113,7 @@ static void *openGLESContextQueueKey;
     }
 }
 
+/** 获取OpenGLES 相关的特性支持 */
 + (GLint)maximumTextureSizeForThisDevice;
 {
     static dispatch_once_t pred;
@@ -186,6 +195,7 @@ static void *openGLESContextQueueKey;
     return supportsFramebufferReads;
 }
 
+/** 调整纹理的大小, 使纹理在OpenGLES 支持的纹理范围内 */
 + (CGSize)sizeThatFitsWithinATextureForSize:(CGSize)inputSize;
 {
     GLint maxTextureSize = [self maximumTextureSizeForThisDevice]; 
@@ -209,13 +219,16 @@ static void *openGLESContextQueueKey;
     return adjustedSize;
 }
 
+/** 将渲染缓存呈现在设备上 */
 - (void)presentBufferForDisplay;
 {
     [self.context presentRenderbuffer:GL_RENDERBUFFER];
 }
 
+// - 获取 shader 对应的 program
 - (GLProgram *)programForVertexShaderString:(NSString *)vertexShaderString fragmentShaderString:(NSString *)fragmentShaderString;
 {
+    // - 从 shaderProgramCache 中取GLProgram, 如果能取到就返回, 取不到就创建;
     NSString *lookupKeyForShaderProgram = [NSString stringWithFormat:@"V: %@ - F: %@", vertexShaderString, fragmentShaderString];
     GLProgram *programFromCache = [shaderProgramCache objectForKey:lookupKeyForShaderProgram];
 
@@ -245,6 +258,7 @@ static void *openGLESContextQueueKey;
     _sharegroup = sharegroup;
 }
 
+/** 创建 EAGLContext[ */
 - (EAGLContext *)createContext;
 {
     EAGLContext *context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2 sharegroup:_sharegroup];

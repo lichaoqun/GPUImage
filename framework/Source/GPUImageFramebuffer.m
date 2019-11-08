@@ -114,6 +114,7 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
 #pragma mark -
 #pragma mark Internal
 
+/** 设置纹理的通用参数 */
 - (void)generateTexture;
 {
     glActiveTexture(GL_TEXTURE1);
@@ -128,11 +129,13 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
     // TODO: Handle mipmaps
 }
 
+/** 设置帧缓冲对象的通用参数 */
 - (void)generateFramebuffer;
 {
     runSynchronouslyOnVideoProcessingQueue(^{
         [GPUImageContext useImageProcessingContext];
     
+        // - 绑定帧缓冲对象
         glGenFramebuffers(1, &framebuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         
@@ -188,7 +191,10 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
 
             glBindTexture(GL_TEXTURE_2D, _texture);
             
+            /** 生成一个纹理对象 */
             glTexImage2D(GL_TEXTURE_2D, 0, _textureOptions.internalFormat, (int)_size.width, (int)_size.height, 0, _textureOptions.format, _textureOptions.type, 0);
+            
+            // - 将纹理附加到帧缓存上
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture, 0);
         }
         
@@ -201,6 +207,7 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
     });
 }
 
+/** 清理帧缓冲对象 */
 - (void)destroyFramebuffer;
 {
     runSynchronouslyOnVideoProcessingQueue(^{
@@ -248,7 +255,7 @@ void dataProviderUnlockCallback (void *info, const void *data, size_t size);
 
 #pragma mark -
 #pragma mark Reference counting
-
+/** 引用计数原理 来释放framebufferCache缓存字典 */
 - (void)lock;
 {
     if (referenceCountingDisabled)

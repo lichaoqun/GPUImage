@@ -3,6 +3,7 @@
 #import <AVFoundation/AVFoundation.h>
 
 // Hardcode the vertex shader for standard filters, but this can be overridden
+// - 顶点着色器
 NSString *const kGPUImageVertexShaderString = SHADER_STRING
 (
  attribute vec4 position;
@@ -18,7 +19,7 @@ NSString *const kGPUImageVertexShaderString = SHADER_STRING
  );
 
 #if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
-
+// - 片元着色器
 NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 (
  varying highp vec2 textureCoordinate;
@@ -32,7 +33,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 );
 
 #else
-
+// - 片元着色器
 NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 (
  varying vec2 textureCoordinate;
@@ -66,10 +67,14 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     _preventRendering = NO;
     currentlyReceivingMonochromeInput = NO;
     inputRotation = kGPUImageNoRotation;
+    
+    // - view 的背景色
     backgroundColorRed = 0.0;
     backgroundColorGreen = 0.0;
     backgroundColorBlue = 0.0;
     backgroundColorAlpha = 0.0;
+    
+    // - 信号量锁
     imageCaptureSemaphore = dispatch_semaphore_create(0);
     dispatch_semaphore_signal(imageCaptureSemaphore);
 
@@ -404,6 +409,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     backgroundColorAlpha = alphaComponent;
 }
 
+// - MARK: <-- 设置shaderProgram的成员属性的值 -->
 - (void)setInteger:(GLint)newInteger forUniformName:(NSString *)uniformName;
 {
     GLint uniformIndex = [filterProgram uniformIndex:uniformName];

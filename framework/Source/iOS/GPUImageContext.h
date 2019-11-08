@@ -16,11 +16,19 @@ typedef NS_ENUM(NSUInteger, GPUImageRotationMode) {
 };
 
 @interface GPUImageContext : NSObject
-
+/** openGL 绘制的队列 */
 @property(readonly, nonatomic) dispatch_queue_t contextQueue;
+
+/** 当前使用的着色器程序 */
 @property(readwrite, retain, nonatomic) GLProgram *currentShaderProgram;
+
+/** EAGLContext 的上下文对象 */
 @property(readonly, retain, nonatomic) EAGLContext *context;
+
+/** coreVideo的纹理缓存 */
 @property(readonly) CVOpenGLESTextureCacheRef coreVideoTextureCache;
+
+/** 帧缓存 */
 @property(readonly) GPUImageFramebufferCache *framebufferCache;
 
 + (void *)contextKey;

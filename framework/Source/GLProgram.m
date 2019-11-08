@@ -20,12 +20,12 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 @end
 // END:extension
 #pragma mark -
-
 @implementation GLProgram
 // START:init
 
 @synthesize initialized = _initialized;
-
+// - MARK: <-- 加载 shaderProgram -->
+/** 直接从字符串编译 shaderProgram */
 - (id)initWithVertexShaderString:(NSString *)vShaderString 
             fragmentShaderString:(NSString *)fShaderString;
 {
@@ -33,10 +33,12 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
     {
         _initialized = NO;
         
+        // - 初始化 attributes 和 uniforms 数组
         attributes = [[NSMutableArray alloc] init];
         uniforms = [[NSMutableArray alloc] init];
         program = glCreateProgram();
         
+        // - 编译顶点着色器
         if (![self compileShader:&vertShader 
                             type:GL_VERTEX_SHADER 
                           string:vShaderString])
@@ -44,7 +46,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
             NSLog(@"Failed to compile vertex shader");
         }
         
-        // Create and compile fragment shader
+        // - 编译片元着色器
         if (![self compileShader:&fragShader 
                             type:GL_FRAGMENT_SHADER 
                           string:fShaderString])
@@ -52,6 +54,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
             NSLog(@"Failed to compile fragment shader");
         }
         
+        // - 将两个着色器附加到着色器程序中
         glAttachShader(program, vertShader);
         glAttachShader(program, fragShader);
     }
@@ -59,6 +62,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
     return self;
 }
 
+/** 用字符串和本地文件加载 shaderProgram */
 - (id)initWithVertexShaderString:(NSString *)vShaderString 
           fragmentShaderFilename:(NSString *)fShaderFilename;
 {
@@ -72,6 +76,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
     return self;
 }
 
+/** 用本地文件加载 shaderProgram */
 - (id)initWithVertexShaderFilename:(NSString *)vShaderFilename 
             fragmentShaderFilename:(NSString *)fShaderFilename;
 {
@@ -89,6 +94,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 }
 // END:init
 // START:compile
+ // - MARK: <-- 编译着色器程序 -->
 - (BOOL)compileShader:(GLuint *)shader 
                  type:(GLenum)type 
                string:(NSString *)shaderString
@@ -139,13 +145,14 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
     return status == GL_TRUE;
 }
 // END:compile
-#pragma mark -
 // START:addattribute
+// - MARK: <-- 这个shaderProgram中的所有用Attribute修饰的变量  -->
 - (void)addAttribute:(NSString *)attributeName
 {
     if (![attributes containsObject:attributeName])
     {
         [attributes addObject:attributeName];
+        // - 绑定索引和变量
         glBindAttribLocation(program, 
                              (GLuint)[attributes indexOfObject:attributeName],
                              [attributeName UTF8String]);
@@ -153,10 +160,12 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 }
 // END:addattribute
 // START:indexmethods
+// - 获取attributes变量对应的索引
 - (GLuint)attributeIndex:(NSString *)attributeName
 {
     return (GLuint)[attributes indexOfObject:attributeName];
 }
+// - 获取uniform变量对应的索引
 - (GLuint)uniformIndex:(NSString *)uniformName
 {
     return glGetUniformLocation(program, [uniformName UTF8String]);
@@ -164,6 +173,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 // END:indexmethods
 #pragma mark -
 // START:link
+// - MARK: <-- 链接着色器程序 -->
 - (BOOL)link
 {
 //    CFAbsoluteTime startTime = CFAbsoluteTimeGetCurrent();
@@ -196,6 +206,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 }
 // END:link
 // START:use
+/** 使用着色器程序 */
 - (void)use
 {
     glUseProgram(program);
