@@ -976,18 +976,18 @@
 		343AC8FF23869F0A001A6543 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				343AC90023869F0A001A6543 /* GPUImageView.h */,
-				343AC90123869F0A001A6543 /* GPUImageContext.m */,
-				343AC90223869F0A001A6543 /* GPUImageMovieWriter.m */,
 				343AC90323869F0A001A6543 /* Framework */,
-				343AC90723869F0B001A6543 /* GPUImagePicture.m */,
-				343AC90823869F0B001A6543 /* GPUImagePicture+TextureSubimage.m */,
-				343AC90923869F0B001A6543 /* GPUImageContext.h */,
-				343AC90A23869F0B001A6543 /* GPUImageView.m */,
-				343AC90B23869F0B001A6543 /* GPUImageMovieWriter.h */,
-				343AC90C23869F0B001A6543 /* GPUImagePicture.h */,
-				343AC90D23869F0B001A6543 /* GPUImagePicture+TextureSubimage.h */,
 				343AC90E23869F0B001A6543 /* GPUImage-Prefix.pch */,
+				343AC90923869F0B001A6543 /* GPUImageContext.h */,
+				343AC90123869F0A001A6543 /* GPUImageContext.m */,
+				343AC90B23869F0B001A6543 /* GPUImageMovieWriter.h */,
+				343AC90223869F0A001A6543 /* GPUImageMovieWriter.m */,
+				343AC90C23869F0B001A6543 /* GPUImagePicture.h */,
+				343AC90723869F0B001A6543 /* GPUImagePicture.m */,
+				343AC90D23869F0B001A6543 /* GPUImagePicture+TextureSubimage.h */,
+				343AC90823869F0B001A6543 /* GPUImagePicture+TextureSubimage.m */,
+				343AC90023869F0A001A6543 /* GPUImageView.h */,
+				343AC90A23869F0B001A6543 /* GPUImageView.m */,
 			);
 			path = iOS;
 			sourceTree = "<group>";

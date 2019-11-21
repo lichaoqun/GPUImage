@@ -7,6 +7,7 @@
 //
 
 #import "ViewController.h"
+#import "GPUImage.h"
 
 @interface ViewController ()
 
@@ -17,6 +18,18 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     // Do any additional setup after loading the view.
+    
+    UIImage *inputImage = [UIImage imageNamed:@"gyy"];
+    GPUImageView * imageView = [[GPUImageView alloc] initWithFrame:self.view.bounds];
+    self.view = imageView;
+
+    GPUImagePicture *sourcePicture = [[GPUImagePicture alloc] initWithImage:inputImage smoothlyScaleOutput:YES];
+    GPUImageTiltShiftFilter *sepiaFilter = [[GPUImageTiltShiftFilter alloc] init];
+    [sepiaFilter forceProcessingAtSize:imageView.sizeInPixels];
+    [sourcePicture addTarget:sepiaFilter];
+    [sepiaFilter addTarget:imageView];
+    [sourcePicture processImage];
+
 }
 
 
