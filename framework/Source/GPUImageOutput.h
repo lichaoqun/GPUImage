@@ -40,10 +40,13 @@ void reportAvailableMemoryForGPUImage(NSString *tag);
  */
 @interface GPUImageOutput : NSObject
 {
+    // - 要输出给下一个着色器程序的 framebuffer 对象
     GPUImageFramebuffer *outputFramebuffer;
     
+    // - target 数组, target纹理数组
     NSMutableArray *targets, *targetTextureIndices;
-    
+
+    // - 纹理尺寸
     CGSize inputTextureSize, cachedMaximumOutputSize, forcedMaximumSize;
     
     BOOL overrideInputSize;
@@ -52,12 +55,22 @@ void reportAvailableMemoryForGPUImage(NSString *tag);
     BOOL usingNextFrameForImageCapture;
 }
 
+/** 是否使用 mipmaps */
 @property(readwrite, nonatomic) BOOL shouldSmoothlyScaleOutput;
+/** 是否忽略处理当前的 target */
 @property(readwrite, nonatomic) BOOL shouldIgnoreUpdatesToThisTarget;
 @property(readwrite, nonatomic, retain) GPUImageMovieWriter *audioEncodingTarget;
+
+/** 当前忽略处理的Target */
 @property(readwrite, nonatomic, unsafe_unretained) id<GPUImageInput> targetToIgnoreForUpdates;
+
+/** 每帧处理完回调 */
 @property(nonatomic, copy) void(^frameProcessingCompletionBlock)(GPUImageOutput*, CMTime);
+
+/** 是否启用渲染目标 */
 @property(nonatomic) BOOL enabled;
+
+/** 纹理选项 */
 @property(readwrite, nonatomic) GPUTextureOptions outputTextureOptions;
 
 /// @name Managing targets

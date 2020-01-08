@@ -45,9 +45,7 @@
 @synthesize delegate = _delegate;
 @synthesize shouldRepeat = _shouldRepeat;
 
-#pragma mark -
-#pragma mark Initialization and teardown
-
+// - MARK: <-- 初始化方法 -->
 - (id)initWithURL:(NSURL *)url;
 {
     if (!(self = [super init])) 
@@ -151,7 +149,6 @@
 
 #pragma mark -
 #pragma mark Movie processing
-
 - (void)enableSynchronizedEncodingUsingMovieWriter:(GPUImageMovieWriter *)movieWriter;
 {
     synchronizedMovieWriter = movieWriter;
@@ -194,7 +191,7 @@
         });
     }];
 }
-
+// - MARK: <-- 使用 asset -->
 - (AVAssetReader*)createAssetReader
 {
     NSError *error = nil;
@@ -312,6 +309,7 @@
     }
 }
 
+// - MARK: <-- 使用 playerItem -->
 - (void)processPlayerItem
 {
     runSynchronouslyOnVideoProcessingQueue(^{
@@ -350,6 +348,7 @@
     });
 }
 
+/** 播放状态发生改变 */
 - (void)outputMediaDataWillChange:(AVPlayerItemOutput *)sender
 {
 #if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
@@ -361,6 +360,7 @@
 }
 
 #if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
+/** 计时器的回调 */
 - (void)displayLinkCallback:(CADisplayLink *)sender
 {
 	/*
@@ -399,7 +399,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     return kCVReturnSuccess;
 }
 #endif
-
+/** 计时器回调, 用每次回调的帧调用 processMovieFrame:withSampleTime: , 在 playerItem 中使用 */
 - (void)processPixelBufferAtTime:(CMTime)outputItemTime {
     if ([playerItemOutput hasNewPixelBufferForItemTime:outputItemTime]) {
         __unsafe_unretained GPUImageMovie *weakSelf = self;
@@ -412,6 +412,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     }
 }
 
+/** 读取下一个视频帧 */
 - (BOOL)readNextVideoFrameFromOutput:(AVAssetReaderOutput *)readerVideoTrackOutput;
 {
     if (reader.status == AVAssetReaderStatusReading && ! videoEncodingIsFinished)
@@ -467,6 +468,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     return NO;
 }
 
+/** 读取下一个音频帧 */
 - (BOOL)readNextAudioSampleFromOutput:(AVAssetReaderOutput *)readerAudioTrackOutput;
 {
     if (reader.status == AVAssetReaderStatusReading && ! audioEncodingIsFinished)
@@ -498,7 +500,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     }
     return NO;
 }
-
+/** 每次读到一个帧, 就调用 processMovieFrame:withSampleTime: 的方法 */
 - (void)processMovieFrame:(CMSampleBufferRef)movieSampleBuffer; 
 {
 //    CMTimeGetSeconds
@@ -528,7 +530,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
         return 0.f;
     }
 }
-
+/** 根据 CVPixelBufferRef , 转成纹理 */
 - (void)processMovieFrame:(CVPixelBufferRef)movieFrame withSampleTime:(CMTime)currentSampleTime
 {
     int bufferHeight = (int) CVPixelBufferGetHeight(movieFrame);
@@ -771,6 +773,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     }
 }
 
+/** 结束处理 */
 - (void)endProcessing;
 {
     keepLooping = NO;
@@ -814,6 +817,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     self.delegate = nil;
 }
 
+/** 取消处理 */
 - (void)cancelProcessing
 {
     if (reader) {
@@ -822,6 +826,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     [self endProcessing];
 }
 
+/** 将当前的纹理绘制到当前的 framebuffer 中 */
 - (void)convertYUVToRGBOutput;
 {
     [GPUImageContext setActiveShaderProgram:yuvConversionProgram];

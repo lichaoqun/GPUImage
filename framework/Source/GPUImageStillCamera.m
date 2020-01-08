@@ -61,7 +61,7 @@ void GPUImageCreateResizedSampleBuffer(CVPixelBufferRef cameraFrame, CGSize fina
 
 #pragma mark -
 #pragma mark Initialization and teardown
-
+// - MARK: <-- 初始化配置信息 -->
 - (id)initWithSessionPreset:(NSString *)sessionPreset cameraPosition:(AVCaptureDevicePosition)cameraPosition;
 {
     if (!(self = [super initWithSessionPreset:sessionPreset cameraPosition:cameraPosition]))
@@ -255,6 +255,7 @@ void GPUImageCreateResizedSampleBuffer(CVPixelBufferRef cameraFrame, CGSize fina
         
         if(!error){
             @autoreleasepool {
+                // - 拿到 finalFilterInChain 对应的 framebuffer 的绘制结果, 并将 framebuffer 转为 image
                 UIImage *filteredPhoto = [finalFilterInChain imageFromCurrentFramebufferWithOrientation:orientation];
                 dispatch_semaphore_signal(frameRenderingSemaphore);
                 dataForPNGFile = UIImagePNGRepresentation(filteredPhoto);
@@ -275,11 +276,13 @@ void GPUImageCreateResizedSampleBuffer(CVPixelBufferRef cameraFrame, CGSize fina
 {
     dispatch_semaphore_wait(frameRenderingSemaphore, DISPATCH_TIME_FOREVER);
 
+    // - 判断是否捕获图像
     if(photoOutput.isCapturingStillImage){
         block([NSError errorWithDomain:AVFoundationErrorDomain code:AVErrorMaximumStillImageCaptureRequestsExceeded userInfo:nil]);
         return;
     }
 
+    // - 异步捕获图像
     [photoOutput captureStillImageAsynchronouslyFromConnection:[[photoOutput connections] objectAtIndex:0] completionHandler:^(CMSampleBufferRef imageSampleBuffer, NSError *error) {
         if(imageSampleBuffer == NULL){
             block(error);
@@ -287,10 +290,14 @@ void GPUImageCreateResizedSampleBuffer(CVPixelBufferRef cameraFrame, CGSize fina
         }
 
         // For now, resize photos to fix within the max texture size of the GPU
+        // - 获取当前的摄像头捕捉到的图像
         CVImageBufferRef cameraFrame = CMSampleBufferGetImageBuffer(imageSampleBuffer);
         
+        // - 捕捉的图片的大小
         CGSize sizeOfPhoto = CGSizeMake(CVPixelBufferGetWidth(cameraFrame), CVPixelBufferGetHeight(cameraFrame));
         CGSize scaledImageSizeToFitOnGPU = [GPUImageContext sizeThatFitsWithinATextureForSize:sizeOfPhoto];
+        
+        // - 需要调整大小
         if (!CGSizeEqualToSize(sizeOfPhoto, scaledImageSizeToFitOnGPU))
         {
             CMSampleBufferRef sampleBuffer = NULL;
@@ -301,16 +308,22 @@ void GPUImageCreateResizedSampleBuffer(CVPixelBufferRef cameraFrame, CGSize fina
             }
             else
             {
+                // - 如果需要调整大小, 就重绘
                 GPUImageCreateResizedSampleBuffer(cameraFrame, scaledImageSizeToFitOnGPU, &sampleBuffer);
             }
 
             dispatch_semaphore_signal(frameRenderingSemaphore);
+            
+            // - 设置 finalFilterInChain 的 usingNextFrameForImageCapture 为 YES, 用于根据 finalFilterInChain 返回 Image
             [finalFilterInChain useNextFrameForImageCapture];
+            
+            // - 生成帧缓冲
             [self captureOutput:photoOutput didOutputSampleBuffer:sampleBuffer fromConnection:[[photoOutput connections] objectAtIndex:0]];
             dispatch_semaphore_wait(frameRenderingSemaphore, DISPATCH_TIME_FOREVER);
             if (sampleBuffer != NULL)
                 CFRelease(sampleBuffer);
         }
+        // - 不需要调整大小
         else
         {
             // This is a workaround for the corrupt images that are sometimes returned when taking a photo with the front camera and using the iOS 5.0 texture caches
@@ -318,7 +331,11 @@ void GPUImageCreateResizedSampleBuffer(CVPixelBufferRef cameraFrame, CGSize fina
             if ( (currentCameraPosition != AVCaptureDevicePositionFront) || (![GPUImageContext supportsFastTextureUpload]) || !requiresFrontCameraTextureCacheCorruptionWorkaround)
             {
                 dispatch_semaphore_signal(frameRenderingSemaphore);
+                
+                // - 设置 finalFilterInChain 的 usingNextFrameForImageCapture 为 YES, 用于根据 finalFilterInChain 返回 Image
                 [finalFilterInChain useNextFrameForImageCapture];
+                 
+                // - 将捕捉到的 imageSampleBuffer 传递给父类
                 [self captureOutput:photoOutput didOutputSampleBuffer:imageSampleBuffer fromConnection:[[photoOutput connections] objectAtIndex:0]];
                 dispatch_semaphore_wait(frameRenderingSemaphore, DISPATCH_TIME_FOREVER);
             }
@@ -326,7 +343,8 @@ void GPUImageCreateResizedSampleBuffer(CVPixelBufferRef cameraFrame, CGSize fina
         
         CFDictionaryRef metadata = CMCopyDictionaryOfAttachments(NULL, imageSampleBuffer, kCMAttachmentMode_ShouldPropagate);
         _currentCaptureMetadata = (__bridge_transfer NSDictionary *)metadata;
-
+        
+        // - 回调
         block(nil);
 
         _currentCaptureMetadata = nil;

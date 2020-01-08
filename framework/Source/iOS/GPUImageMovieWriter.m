@@ -67,7 +67,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
 
 #pragma mark -
 #pragma mark Initialization and teardown
-
+// - MARK: <-- 初始化方法 -->
 - (id)initWithMovieURL:(NSURL *)newMovieURL size:(CGSize)newSize;
 {
     return [self initWithMovieURL:newMovieURL size:newSize fileType:AVFileTypeQuickTimeMovie outputSettings:nil];
@@ -163,7 +163,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
 
 #pragma mark -
 #pragma mark Movie recording
-
+// - MARK: <-- 初始化 AVAssetWriter 的相关参数 -->
 - (void)initializeMovieWithOutputSettings:(NSDictionary *)outputSettings;
 {
     isRecording = NO;
@@ -191,6 +191,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     assetWriter.movieFragmentInterval = CMTimeMakeWithSeconds(1.0, 1000);
     
     // use default output settings if none specified
+    // - 配置编码方式, 视频的宽高
     if (outputSettings == nil) 
     {
         NSMutableDictionary *settings = [[NSMutableDictionary alloc] init];
@@ -242,6 +243,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     assetWriterVideoInput.expectsMediaDataInRealTime = _encodingLiveVideo;
     
     // You need to use BGRA for the video in order to get realtime encoding. I use a color-swizzling shader to line up glReadPixels' normal RGBA output with the movie input's BGRA.
+    // - 设置输入到编码器的像素格式
     NSDictionary *sourcePixelBufferAttributesDictionary = [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithInt:kCVPixelFormatType_32BGRA], kCVPixelBufferPixelFormatTypeKey,
                                                            [NSNumber numberWithInt:videoSize.width], kCVPixelBufferWidthKey,
                                                            [NSNumber numberWithInt:videoSize.height], kCVPixelBufferHeightKey,
@@ -266,7 +268,8 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
         assetWriterAudioInput.expectsMediaDataInRealTime = _encodingLiveVideo;
     }
 }
-
+// - MARK: <-- 设置录制的开始取消和结束 -->
+/** 开始录制 */
 - (void)startRecording;
 {
     alreadyFinishedRecording = NO;
@@ -280,7 +283,6 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     isRecording = YES;
 	//    [assetWriter startSessionAtSourceTime:kCMTimeZero];
 }
-
 - (void)startRecordingInOrientation:(CGAffineTransform)orientationTransform;
 {
 	assetWriterVideoInput.transform = orientationTransform;
@@ -288,6 +290,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
 	[self startRecording];
 }
 
+/** 取消录制 */
 - (void)cancelRecording;
 {
     if (assetWriter.status == AVAssetWriterStatusCompleted)
@@ -313,6 +316,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     });
 }
 
+/** 结束录制 */
 - (void)finishRecording;
 {
     [self finishRecordingWithCompletionHandler:NULL];
@@ -363,6 +367,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     });
 }
 
+/** 处理音频数据 */
 - (void)processAudioBuffer:(CMSampleBufferRef)audioBuffer;
 {
     if (!isRecording || _paused)
@@ -493,6 +498,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     }
 }
 
+// 处理同步videoInputReadyCallback、audioInputReadyCallback回调
 - (void)enableSynchronizationCallbacks;
 {
     if (videoInputReadyCallback != NULL)
@@ -564,7 +570,8 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
 
 - (void)createDataFBO;
 {
-    glActiveTexture(GL_TEXTURE1);
+    // - 个人注释的
+//    glActiveTexture(GL_TEXTURE1);
     glGenFramebuffers(1, &movieFramebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, movieFramebuffer);
     
@@ -584,6 +591,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
         CVBufferSetAttachment(renderTarget, kCVImageBufferYCbCrMatrixKey, kCVImageBufferYCbCrMatrix_ITU_R_601_4, kCVAttachmentMode_ShouldPropagate);
         CVBufferSetAttachment(renderTarget, kCVImageBufferTransferFunctionKey, kCVImageBufferTransferFunction_ITU_R_709_2, kCVAttachmentMode_ShouldPropagate);
         
+        // - 创建纹理
         CVOpenGLESTextureCacheCreateTextureFromImage (kCFAllocatorDefault, [_movieWriterContext coreVideoTextureCache], renderTarget,
                                                       NULL, // texture attributes
                                                       GL_TEXTURE_2D,
@@ -599,6 +607,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         
+        // - 将纹理附加到帧缓存上
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, CVOpenGLESTextureGetName(renderTexture), 0);
     }
     else
@@ -659,9 +668,14 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     glViewport(0, 0, (int)videoSize.width, (int)videoSize.height);
 }
 
+
+/** 创建 framebuffer 并将 inputFramebufferForBlock 的结果绘制到  framebuffer 并生成 pixbuffer
+ */
 - (void)renderAtInternalSizeUsingFramebuffer:(GPUImageFramebuffer *)inputFramebufferToUse;
 {
     [_movieWriterContext useAsCurrentContext];
+    
+    // - 创建 framebufferobject
     [self setFilterFBO];
     
     [_movieWriterContext setContextShaderProgram:colorSwizzlingProgram];
@@ -679,6 +693,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     
     const GLfloat *textureCoordinates = [GPUImageFilter textureCoordinatesForRotation:inputRotation];
     
+    // - 获取纹理
 	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, [inputFramebufferToUse texture]);
 	glUniform1i(colorSwizzlingInputTextureUniform, 4);
@@ -688,13 +703,43 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     glVertexAttribPointer(colorSwizzlingPositionAttribute, 2, GL_FLOAT, 0, 0, squareVertices);
 	glVertexAttribPointer(colorSwizzlingTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, textureCoordinates);
     
+    // -   将纹理绘制到 framebuffer 中,如果不执行 glDrawArrays(), 得到的 renderTarget 是没有像素数据的, 只有调用了 glDrawArrays() 函数, 才有像素数据;
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glFinish();
+    
+    // - 测试代码
+    UIImage *img = [self imageFromPixelBuffer:renderTarget];
+    UIImage *img1 = [self imageFromPixelBuffer:[firstInputFramebuffer pixelBuffer]];
+    NSLog(@"test==");
+}
+
+/** 自己写的测试代码 */
+- (UIImage *)imageFromPixelBuffer:(CVPixelBufferRef)pixelBufferRef {
+    CVImageBufferRef imageBuffer =  pixelBufferRef;
+    
+    CVPixelBufferLockBaseAddress(imageBuffer, 0);
+    void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    size_t bufferSize = CVPixelBufferGetDataSize(imageBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(imageBuffer, 0);
+    
+    CGColorSpaceRef rgbColorSpace = CGColorSpaceCreateDeviceRGB();
+    CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, baseAddress, bufferSize, NULL);
+    
+    CGImageRef cgImage = CGImageCreate(width, height, 8, 32, bytesPerRow, rgbColorSpace, kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrderDefault, provider, NULL, true, kCGRenderingIntentDefault);
+    UIImage *image = [UIImage imageWithCGImage:cgImage];
+    CGImageRelease(cgImage);
+    CGDataProviderRelease(provider);
+    CGColorSpaceRelease(rgbColorSpace);
+    
+    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    return image;
 }
 
 #pragma mark -
 #pragma mark GPUImageInput protocol
-
+/** 采集到的每一帧数据的回调 */
 - (void)newFrameReadyAtTime:(CMTime)frameTime atIndex:(NSInteger)textureIndex;
 {
     if (!isRecording || _paused)
@@ -747,6 +792,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
         });
     }
 
+    // - 记录 firstInputFramebuffer;
     GPUImageFramebuffer *inputFramebufferForBlock = firstInputFramebuffer;
     glFinish();
 
@@ -760,6 +806,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
         
         // Render the frame with swizzled colors, so that they can be uploaded quickly as BGRA frames
         [_movieWriterContext useAsCurrentContext];
+        // - 创建 framebuffer 并将 inputFramebufferForBlock 的结果绘制到  framebuffer 并生成 pixbuffer
         [self renderAtInternalSizeUsingFramebuffer:inputFramebufferForBlock];
         
         CVPixelBufferRef pixel_buffer = NULL;
@@ -786,6 +833,8 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
             }
         }
         
+        
+        // - 写入 pixelBuffer
         void(^write)() = ^() {
             while( ! assetWriterVideoInput.readyForMoreMediaData && ! _encodingLiveVideo && ! videoEncodingIsFinished ) {
                 NSDate *maxDate = [NSDate dateWithTimeIntervalSinceNow:0.1];
@@ -827,6 +876,7 @@ NSString *const kGPUImageColorSwizzlingFragmentShaderString = SHADER_STRING
     return 0;
 }
 
+/** 记录 firstframebuffer */
 - (void)setInputFramebuffer:(GPUImageFramebuffer *)newInputFramebuffer atIndex:(NSInteger)textureIndex;
 {
     [newInputFramebuffer lock];

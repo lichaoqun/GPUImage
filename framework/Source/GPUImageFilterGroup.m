@@ -21,7 +21,7 @@
 
 #pragma mark -
 #pragma mark Filter management
-
+/** 保存所有的滤镜 */
 - (void)addFilter:(GPUImageOutput<GPUImageInput> *)newFilter;
 {
     [filters addObject:newFilter];
@@ -58,6 +58,7 @@
     [_terminalFilter setTargetToIgnoreForUpdates:targetToIgnoreForUpdates];
 }
 
+/** 实现链式编程, (就是给每个 filter 添加一个新的 filter) */
 - (void)addTarget:(id<GPUImageInput>)newTarget atTextureLocation:(NSInteger)textureLocation;
 {
     [_terminalFilter addTarget:newTarget atTextureLocation:textureLocation];
@@ -90,7 +91,10 @@
 
 #pragma mark -
 #pragma mark GPUImageInput protocol
-
+/** 链式编程的开始 (先调用 _initialFilter 的 newFrameReadyAtTime:atIndex:) 在 _initialFilter render 完成之后, 会调用 _initialFilter 的 targets 中的 BFilter, 然后调用 BFilter 的 newFrameReadyAtTime:atIndex: 在 BFilter render 完成之后, 会调用 BFilter 的 targets 中的 CFilter, 然后调用 CFilter 的 newFrameReadyAtTime:atIndex:, 一直循环下去, 直到target 为 GPUImageView 时候, 就会将所有的结果绘制到GPUImageView 中 */
+/** 流程
+ _initialFilter -> newFrameReadyAtTime:atIndex:
+ */
 - (void)newFrameReadyAtTime:(CMTime)frameTime atIndex:(NSInteger)textureIndex;
 {
     for (GPUImageOutput<GPUImageInput> *currentFilter in _initialFilters)
@@ -101,7 +105,10 @@
         }
     }
 }
-
+/** 链式编程的开始 (设置 outputframebuffer 为下一个 filter 的firstFramebuffer) */
+/**
+ _initialFilter -> setInputFramebuffer:atIndex:
+ */
 - (void)setInputFramebuffer:(GPUImageFramebuffer *)newInputFramebuffer atIndex:(NSInteger)textureIndex;
 {
     for (GPUImageOutput<GPUImageInput> *currentFilter in _initialFilters)

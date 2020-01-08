@@ -3,7 +3,7 @@
 #import <AVFoundation/AVFoundation.h>
 
 // Hardcode the vertex shader for standard filters, but this can be overridden
-// - 顶点着色器
+// - MARK: <-- 着色器程序 -->
 NSString *const kGPUImageVertexShaderString = SHADER_STRING
 (
  attribute vec4 position;
@@ -55,7 +55,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 
 #pragma mark -
 #pragma mark Initialization and teardown
-
+// - MARK: <-- 初始化程序 -->
 - (id)initWithVertexShaderFromString:(NSString *)vertexShaderString fragmentShaderFromString:(NSString *)fragmentShaderString;
 {
     if (!(self = [super init]))
@@ -81,6 +81,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     runSynchronouslyOnVideoProcessingQueue(^{
         [GPUImageContext useImageProcessingContext];
 
+        // - 获取着色器程序
         filterProgram = [[GPUImageContext sharedImageProcessingContext] programForVertexShaderString:vertexShaderString fragmentShaderString:fragmentShaderString];
         
         if (!filterProgram.initialized)
@@ -100,6 +101,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
             }
         }
         
+        // - 获取通用的顶点属性
         filterPositionAttribute = [filterProgram attributeIndex:@"position"];
         filterTextureCoordinateAttribute = [filterProgram attributeIndex:@"inputTextureCoordinate"];
         filterInputTextureUniform = [filterProgram uniformIndex:@"inputImageTexture"]; // This does assume a name of "inputImageTexture" for the fragment shader
@@ -170,9 +172,6 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 
 }
 
-#pragma mark -
-#pragma mark Still image processing
-
 - (void)useNextFrameForImageCapture;
 {
     usingNextFrameForImageCapture = YES;
@@ -184,6 +183,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     }
 }
 
+/** 从当前的帧中取到最后渲染的纹理结果纹理 */
 - (CGImageRef)newCGImageFromCurrentlyProcessedOutput
 {
     // Give it three seconds to process, then abort if they forgot to set up the image capture properly
@@ -204,9 +204,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     return image;
 }
 
-#pragma mark -
-#pragma mark Managing the display FBOs
-
+// - MARK: <-- 纹理尺寸 -->
 - (CGSize)sizeOfFBO;
 {
     CGSize outputSize = [self maximumOutputSize];
@@ -220,8 +218,8 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     }
 }
 
-#pragma mark -
-#pragma mark Rendering
+
+// - MARK: <-- 纹理的旋转角度 -->
 /** 根据提供的旋转枚举角度, 返回对应的纹理顶点数组 */
 + (const GLfloat *)textureCoordinatesForRotation:(GPUImageRotationMode)rotationMode;
 {
@@ -302,7 +300,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     }
 }
 
-/** 根据顶点数组, 渲染视图 */
+/** 将上一个 shader的 outputframebuffer (当前 shader 的 inputframebuffer) 绘制到当前的 outputframebuffer (下一个 shader 的 inputframebuffer) */
 - (void)renderToTextureWithVertices:(const GLfloat *)vertices textureCoordinates:(const GLfloat *)textureCoordinates;
 {
     if (self.preventRendering)
@@ -329,19 +327,18 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 
     // - 激活纹理单元
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, [firstInputFramebuffer texture]);
-	
-	glUniform1i(filterInputTextureUniform, 2);	
+    GLuint texture = [firstInputFramebuffer texture];
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glUniform1i(filterInputTextureUniform, 2);
 
     // - 设置顶点数据解析方式
     glVertexAttribPointer(filterPositionAttribute, 2, GL_FLOAT, 0, 0, vertices);
 	glVertexAttribPointer(filterTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, textureCoordinates);
-    
+
     // - 开始渲染
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     [firstInputFramebuffer unlock];
-    
     // - usingNextFrameForImageCapture 代表着输出的结果会被用于获取图像
     if (usingNextFrameForImageCapture)
     {
@@ -349,6 +346,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     }
 }
 
+/** 当前的输出的 framebuffer 渲染完成后, 通知下一个shader 以当前的 framebuffer 为 inputframebuffer 作为输入 */
 - (void)informTargetsAboutNewFrameAtTime:(CMTime)frameTime;
 {
     if (self.frameProcessingCompletionBlock != NULL)
@@ -398,9 +396,7 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     return inputTextureSize;
 }
 
-#pragma mark -
-#pragma mark Input parameters
-
+// - MARK: <-- 设置输入参数 -->
 - (void)setBackgroundColorRed:(GLfloat)redComponent green:(GLfloat)greenComponent blue:(GLfloat)blueComponent alpha:(GLfloat)alphaComponent;
 {
     backgroundColorRed = redComponent;
@@ -573,11 +569,10 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     }];
 }
 
-#pragma mark -
-#pragma mark GPUImageInput
-
+// - MARK: <-- GPUImageInput -->
 - (void)newFrameReadyAtTime:(CMTime)frameTime atIndex:(NSInteger)textureIndex;
 {
+    // - 顶点坐标
     static const GLfloat imageVertices[] = {
         -1.0f, -1.0f,
         1.0f, -1.0f,
@@ -585,8 +580,10 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
         1.0f,  1.0f,
     };
     
+    // - 根据顶点坐标和纹理坐标 渲染
     [self renderToTextureWithVertices:imageVertices textureCoordinates:[[self class] textureCoordinatesForRotation:inputRotation]];
 
+    // - 渲染完成后通知其他的target, 并将渲染结果当做下一个 target 的输入纹理
     [self informTargetsAboutNewFrameAtTime:frameTime];
 }
 

@@ -57,16 +57,41 @@ typedef NS_ENUM(NSUInteger, GPUImageRotationMode) {
 
 @end
 
+
+/** 遵守这个协议的类表示能接受帧缓存的输入 */
 @protocol GPUImageInput <NSObject>
+
+/** 准备下一个要使用的帧 */
 - (void)newFrameReadyAtTime:(CMTime)frameTime atIndex:(NSInteger)textureIndex;
+
+/** 设置输入的帧缓冲对象以及纹理 */
 - (void)setInputFramebuffer:(GPUImageFramebuffer *)newInputFramebuffer atIndex:(NSInteger)textureIndex;
+
+/** 下一个有效的纹理索引 */
 - (NSInteger)nextAvailableTextureIndex;
+
+/** 设置目标的尺寸 */
 - (void)setInputSize:(CGSize)newSize atIndex:(NSInteger)textureIndex;
+
+/** 设置输入的旋转模式 */
 - (void)setInputRotation:(GPUImageRotationMode)newInputRotation atIndex:(NSInteger)textureIndex;
+
+/** 输出缓冲区的最大尺寸 */
 - (CGSize)maximumOutputSize;
+
+/** 结束处理 */
 - (void)endProcessing;
+
+/** 是否忽略渲染目标的更新 */
 - (BOOL)shouldIgnoreUpdatesToThisTarget;
+
+/** 是否启用渲染目标 */
 - (BOOL)enabled;
+
+/** 是否为单色输入 */
 - (BOOL)wantsMonochromeInput;
+
+/** 设置单色输入 */
 - (void)setCurrentlyReceivingMonochromeInput:(BOOL)newValue;
+
 @end

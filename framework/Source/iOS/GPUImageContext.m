@@ -8,7 +8,6 @@ extern dispatch_queue_attr_t GPUImageDefaultQueueAttribute(void);
 
 @interface GPUImageContext()
 {
-    // - key : shader; value : shader program 的封装
     NSMutableDictionary *shaderProgramCache;
     NSMutableArray *shaderProgramUsageHistory;
     EAGLSharegroup *_sharegroup;
@@ -17,7 +16,6 @@ extern dispatch_queue_attr_t GPUImageDefaultQueueAttribute(void);
 @end
 
 @implementation GPUImageContext
-
 @synthesize context = _context;
 @synthesize currentShaderProgram = _currentShaderProgram;
 @synthesize contextQueue = _contextQueue;
@@ -33,7 +31,7 @@ static void *openGLESContextQueueKey;
 		return nil;
     }
 
-    // - openGLES 的渲染队列
+    // - openGLES 的渲染串行队列
 	openGLESContextQueueKey = &openGLESContextQueueKey;
     _contextQueue = dispatch_queue_create("com.sunsetlakesoftware.GPUImage.openGLESContextQueue", GPUImageDefaultQueueAttribute());
     
@@ -41,8 +39,10 @@ static void *openGLESContextQueueKey;
 	dispatch_queue_set_specific(_contextQueue, openGLESContextQueueKey, (__bridge void *)self, NULL);
 #endif
     
-    // - 创建着色器缓存数组
+    // - 创建着色器缓存 key : 着色器字符串, value : 编译着色器生成的 program.
     shaderProgramCache = [[NSMutableDictionary alloc] init];
+    
+    // - 着色器使用的历史
     shaderProgramUsageHistory = [[NSMutableArray alloc] init];
     
     return self;
@@ -54,7 +54,7 @@ static void *openGLESContextQueueKey;
 }
 
 // Based on Colin Wheeler's example here: http://cocoasamurai.blogspot.com/2011/04/singletons-your-doing-them-wrong.html
-/** context 单利对象 */
+/** GPUImageContext 单利对象 */
 + (GPUImageContext *)sharedImageProcessingContext;
 {
     static dispatch_once_t pred;
@@ -72,7 +72,7 @@ static void *openGLESContextQueueKey;
     return [[self sharedImageProcessingContext] contextQueue];
 }
 
-/** 渲染的帧缓存 */
+/** 帧缓存 */
 + (GPUImageFramebufferCache *)sharedFramebufferCache;
 {
     return [[self sharedImageProcessingContext] framebufferCache];
@@ -113,7 +113,7 @@ static void *openGLESContextQueueKey;
     }
 }
 
-/** 获取OpenGLES 相关的特性支持 */
+/** OpenGLES 特性支持 */
 + (GLint)maximumTextureSizeForThisDevice;
 {
     static dispatch_once_t pred;
@@ -198,12 +198,16 @@ static void *openGLESContextQueueKey;
 /** 调整纹理的大小, 使纹理在OpenGLES 支持的纹理范围内 */
 + (CGSize)sizeThatFitsWithinATextureForSize:(CGSize)inputSize;
 {
+    
+    // - 如果在最大纹理尺寸范围内, 就直接使用
     GLint maxTextureSize = [self maximumTextureSizeForThisDevice]; 
     if ( (inputSize.width < maxTextureSize) && (inputSize.height < maxTextureSize) )
     {
         return inputSize;
     }
     
+    
+    // - 超过最大纹理范围 等比例缩放( 直到MAX(width, height) == 最大的支持的纹理尺寸 )
     CGSize adjustedSize;
     if (inputSize.width > inputSize.height)
     {
@@ -225,7 +229,7 @@ static void *openGLESContextQueueKey;
     [self.context presentRenderbuffer:GL_RENDERBUFFER];
 }
 
-// - 获取 shader 对应的 program
+/** 获取 shader 对应的 program */
 - (GLProgram *)programForVertexShaderString:(NSString *)vertexShaderString fragmentShaderString:(NSString *)fragmentShaderString;
 {
     // - 从 shaderProgramCache 中取GLProgram, 如果能取到就返回, 取不到就创建;
@@ -258,7 +262,7 @@ static void *openGLESContextQueueKey;
     _sharegroup = sharegroup;
 }
 
-/** 创建 EAGLContext[ */
+/** 创建 EAGLContext */
 - (EAGLContext *)createContext;
 {
     EAGLContext *context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2 sharegroup:_sharegroup];
@@ -266,10 +270,7 @@ static void *openGLESContextQueueKey;
     return context;
 }
 
-
-#pragma mark -
-#pragma mark Manage fast texture upload
-
+/** 是否允许快速纹理上传 */
 + (BOOL)supportsFastTextureUpload;
 {
 #if TARGET_IPHONE_SIMULATOR
@@ -284,9 +285,8 @@ static void *openGLESContextQueueKey;
 #endif
 }
 
-#pragma mark -
-#pragma mark Accessors
 
+/** EAGLContext 上下文 */
 - (EAGLContext *)context;
 {
     if (_context == nil)
@@ -301,6 +301,7 @@ static void *openGLESContextQueueKey;
     return _context;
 }
 
+/** 创建纹理缓存 */
 - (CVOpenGLESTextureCacheRef)coreVideoTextureCache;
 {
     if (_coreVideoTextureCache == NULL)
@@ -321,6 +322,8 @@ static void *openGLESContextQueueKey;
     return _coreVideoTextureCache;
 }
 
+
+/** 创建帧缓存 */
 - (GPUImageFramebufferCache *)framebufferCache;
 {
     if (_framebufferCache == nil)

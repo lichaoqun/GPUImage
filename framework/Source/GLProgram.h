@@ -16,7 +16,7 @@
 @interface GLProgram : NSObject 
 {
     NSMutableArray  *attributes;
-    NSMutableArray  *uniforms;
+//    NSMutableArray  *uniforms;
     GLuint          program,
 	vertShader, 
 	fragShader;	

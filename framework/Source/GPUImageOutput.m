@@ -129,17 +129,26 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
 
 @implementation GPUImageOutput
 
+/** 是否使用 mipmaps */
 @synthesize shouldSmoothlyScaleOutput = _shouldSmoothlyScaleOutput;
+
+/** 是否忽略处理当前的 targe */
 @synthesize shouldIgnoreUpdatesToThisTarget = _shouldIgnoreUpdatesToThisTarget;
 @synthesize audioEncodingTarget = _audioEncodingTarget;
+
+/** 当前忽略处理的target */
 @synthesize targetToIgnoreForUpdates = _targetToIgnoreForUpdates;
+
+/** 每帧处理完成后的回调 */
 @synthesize frameProcessingCompletionBlock = _frameProcessingCompletionBlock;
+
+/** 是否启用渲染目标 */
 @synthesize enabled = _enabled;
+
+/** 纹理选项 */
 @synthesize outputTextureOptions = _outputTextureOptions;
 
-#pragma mark -
-#pragma mark Initialization and teardown
-
+// - MARK: <-- 初始化 -->
 - (id)init; 
 {
 	if (!(self = [super init]))
@@ -170,24 +179,26 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     [self removeAllTargets];
 }
 
-#pragma mark -
-#pragma mark Managing targets
-
+// - MARK: <-- 帧缓冲对象管理 -->
+/** 给下一个着色器设置的输入的framebuffer */
 - (void)setInputFramebufferForTarget:(id<GPUImageInput>)target atIndex:(NSInteger)inputTextureIndex;
 {
     [target setInputFramebuffer:[self framebufferForOutput] atIndex:inputTextureIndex];
 }
-
+/** 获取当前的缓冲对象的输出的framebuffer */
 - (GPUImageFramebuffer *)framebufferForOutput;
 {
     return outputFramebuffer;
 }
 
+/** 删除帧缓冲对象 */
 - (void)removeOutputFramebuffer;
 {
     outputFramebuffer = nil;
 }
 
+// - MARK: <-- 所有的target -->
+/** 通知所有的 target 有新的纹理输出 */
 - (void)notifyTargetsAboutNewOutputTexture;
 {
     for (id<GPUImageInput> currentTarget in targets)
@@ -199,11 +210,13 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     }
 }
 
+/** target数组 */
 - (NSArray*)targets;
 {
 	return [NSArray arrayWithArray:targets];
 }
 
+/** 添加新的target */
 - (void)addTarget:(id<GPUImageInput>)newTarget;
 {
     NSInteger nextAvailableTextureIndex = [newTarget nextAvailableTextureIndex];
@@ -214,7 +227,6 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
         _targetToIgnoreForUpdates = newTarget;
     }
 }
-
 - (void)addTarget:(id<GPUImageInput>)newTarget atTextureLocation:(NSInteger)textureLocation;
 {
     if([targets containsObject:newTarget])
@@ -232,6 +244,7 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     });
 }
 
+/** 移除 target */
 - (void)removeTarget:(id<GPUImageInput>)targetToRemove;
 {
     if(![targets containsObject:targetToRemove])
@@ -278,9 +291,7 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     });
 }
 
-#pragma mark -
-#pragma mark Manage the output texture
-
+// - MARK: <-- 管理输出的纹理 -->
 - (void)forceProcessingAtSize:(CGSize)frameSize;
 {
     
@@ -290,9 +301,7 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
 {
 }
 
-#pragma mark -
-#pragma mark Still image processing
-
+// - MARK: <-- 从 framebuffer 中去 CGImage -->
 - (void)useNextFrameForImageCapture;
 {
 
@@ -303,6 +312,7 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     return nil;
 }
 
+/**  获取当前纹理缓冲区对应的图片 */
 - (CGImageRef)newCGImageByFilteringCGImage:(CGImageRef)imageToFilter;
 {
     GPUImagePicture *stillImageSource = [[GPUImagePicture alloc] initWithCGImage:imageToFilter];
@@ -322,11 +332,8 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
     return NO;
 }
 
-#pragma mark -
-#pragma mark Platform-specific image output methods
-
+// - MARK: <-- 从帧缓冲对象中去 CGImage 对象 (iOS 平台) -->
 #if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
-
 - (UIImage *)imageFromCurrentFramebuffer;
 {
 	UIDeviceOrientation deviceOrientation = [[UIDevice currentDevice] orientation];
@@ -377,6 +384,7 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
 
 #else
 
+// - MARK: <-- 从帧缓冲对象中去 CGImage 对象 (mac 平台) -->
 - (NSImage *)imageFromCurrentFramebuffer;
 {
     return [self imageFromCurrentFramebufferWithOrientation:UIImageOrientationLeft];
@@ -406,9 +414,7 @@ void reportAvailableMemoryForGPUImage(NSString *tag)
 
 #endif
 
-#pragma mark -
-#pragma mark Accessors
-
+// - MARK: <-- <#mark#> -->
 - (void)setAudioEncodingTarget:(GPUImageMovieWriter *)newValue;
 {    
     _audioEncodingTarget = newValue;

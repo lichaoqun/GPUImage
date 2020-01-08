@@ -4,24 +4,17 @@
 
 
 #import "GLProgram.h"
-// START:typedefs
-#pragma mark Function Pointer Definitions
 typedef void (*GLInfoFunction)(GLuint program, GLenum pname, GLint* params);
 typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length, GLchar* infolog);
-// END:typedefs
-#pragma mark -
-#pragma mark Private Extension Method Declaration
-// START:extension
-@interface GLProgram()
 
+@interface GLProgram()
 - (BOOL)compileShader:(GLuint *)shader 
                  type:(GLenum)type 
                string:(NSString *)shaderString;
 @end
-// END:extension
-#pragma mark -
+
+// - MARK: <-- 实现 -->
 @implementation GLProgram
-// START:init
 
 @synthesize initialized = _initialized;
 // - MARK: <-- 加载 shaderProgram -->
@@ -35,7 +28,11 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
         
         // - 初始化 attributes 和 uniforms 数组
         attributes = [[NSMutableArray alloc] init];
-        uniforms = [[NSMutableArray alloc] init];
+        
+        // - 这里没用到
+//        uniforms = [[NSMutableArray alloc] init];
+        
+        // - 创建一个program
         program = glCreateProgram();
         
         // - 编译顶点着色器
@@ -92,8 +89,7 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
     
     return self;
 }
-// END:init
-// START:compile
+
  // - MARK: <-- 编译着色器程序 -->
 - (BOOL)compileShader:(GLuint *)shader 
                  type:(GLenum)type 
@@ -112,19 +108,29 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
         return NO;
     }
     
+    // - 创建着色器程序
     *shader = glCreateShader(type);
+    
+    // -  替换着色器对象中的源代码
     glShaderSource(*shader, 1, &source, NULL);
+    
+    // - 编译着色器中的代码
     glCompileShader(*shader);
     
+    // - 获取着色器程序的编译状态
     glGetShaderiv(*shader, GL_COMPILE_STATUS, &status);
 
 	if (status != GL_TRUE)
 	{
 		GLint logLength;
+        
+        //- 获取着色器程序的 log日志的长度
 		glGetShaderiv(*shader, GL_INFO_LOG_LENGTH, &logLength);
 		if (logLength > 0)
 		{
 			GLchar *log = (GLchar *)malloc(logLength);
+            
+            // - 获取着色器程序的日志
 			glGetShaderInfoLog(*shader, logLength, &logLength, log);
             if (shader == &vertShader)
             {
@@ -144,35 +150,34 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 
     return status == GL_TRUE;
 }
-// END:compile
-// START:addattribute
+
 // - MARK: <-- 这个shaderProgram中的所有用Attribute修饰的变量  -->
 - (void)addAttribute:(NSString *)attributeName
 {
     if (![attributes containsObject:attributeName])
     {
         [attributes addObject:attributeName];
-        // - 绑定索引和变量
+        
+        // - 绑定顶点属性索引绑定到数组的下标
         glBindAttribLocation(program, 
                              (GLuint)[attributes indexOfObject:attributeName],
                              [attributeName UTF8String]);
     }
 }
-// END:addattribute
-// START:indexmethods
-// - 获取attributes变量对应的索引
+
+// - 获取attributes变量对应的索引(即数组下标)
 - (GLuint)attributeIndex:(NSString *)attributeName
 {
     return (GLuint)[attributes indexOfObject:attributeName];
 }
-// - 获取uniform变量对应的索引
+
+// - 获取uniform属性变量对应的索引
 - (GLuint)uniformIndex:(NSString *)uniformName
 {
     return glGetUniformLocation(program, [uniformName UTF8String]);
 }
-// END:indexmethods
+
 #pragma mark -
-// START:link
 // - MARK: <-- 链接着色器程序 -->
 - (BOOL)link
 {
@@ -180,12 +185,15 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 
     GLint status;
     
+    // - 链接着色器
     glLinkProgram(program);
     
+    // - 获取着色器的连接状态
     glGetProgramiv(program, GL_LINK_STATUS, &status);
     if (status == GL_FALSE)
         return NO;
     
+    // - 链接完成后释放
     if (vertShader)
     {
         glDeleteShader(vertShader);
@@ -204,33 +212,35 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
 
     return YES;
 }
-// END:link
-// START:use
+
 /** 使用着色器程序 */
 - (void)use
 {
     glUseProgram(program);
 }
-// END:use
-#pragma mark -
 
+// - MARK: <-- 验证程序对象 -->
 - (void)validate;
 {
 	GLint logLength;
 	
+    // - 验证程序对象
 	glValidateProgram(program);
+    
+    // - 获取着色器程序的日志长度
 	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
 	if (logLength > 0)
 	{
 		GLchar *log = (GLchar *)malloc(logLength);
+        
+        // - 获取着色器程序的日志
 		glGetProgramInfoLog(program, logLength, &logLength, log);
         self.programLog = [NSString stringWithFormat:@"%s", log];
 		free(log);
 	}	
 }
 
-#pragma mark -
-// START:dealloc
+// - MARK: <-- 释放着色器程序 -->
 - (void)dealloc
 {
     if (vertShader)
@@ -243,5 +253,5 @@ typedef void (*GLLogFunction) (GLuint program, GLsizei bufsize, GLsizei* length,
         glDeleteProgram(program);
        
 }
-// END:dealloc
+
 @end

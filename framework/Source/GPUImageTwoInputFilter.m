@@ -83,7 +83,9 @@ NSString *const kGPUImageTwoInputTextureVertexShaderString = SHADER_STRING
 
 #pragma mark -
 #pragma mark Rendering
-
+/**
+ 核心思路是 : 这个filter有两个inputimagebuffer, 然后有两个纹理采样器, 分别采样两个framebuffer 的渲染结果纹理, 然后将结果绘制到 outputFramebuffer 上
+ */
 - (void)renderToTextureWithVertices:(const GLfloat *)vertices textureCoordinates:(const GLfloat *)textureCoordinates;
 {
     if (self.preventRendering)
@@ -106,14 +108,17 @@ NSString *const kGPUImageTwoInputTextureVertexShaderString = SHADER_STRING
     glClearColor(backgroundColorRed, backgroundColorGreen, backgroundColorBlue, backgroundColorAlpha);
     glClear(GL_COLOR_BUFFER_BIT);
     
+    // - 激活第一个纹理采样器
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, [firstInputFramebuffer texture]);
 	glUniform1i(filterInputTextureUniform, 2);	
     
+    // - 激活第二个纹理采样器
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, [secondInputFramebuffer texture]);
     glUniform1i(filterInputTextureUniform2, 3);
     
+    // - 设置数据的解析方式
     glVertexAttribPointer(filterPositionAttribute, 2, GL_FLOAT, 0, 0, vertices);
 	glVertexAttribPointer(filterTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, textureCoordinates);
     glVertexAttribPointer(filterSecondTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, [[self class] textureCoordinatesForRotation:inputRotation2]);
@@ -143,6 +148,7 @@ NSString *const kGPUImageTwoInputTextureVertexShaderString = SHADER_STRING
     }
 }
 
+/** 记录保存两个 inputframebuffer */
 - (void)setInputFramebuffer:(GPUImageFramebuffer *)newInputFramebuffer atIndex:(NSInteger)textureIndex;
 {
     if (textureIndex == 0)
@@ -206,6 +212,7 @@ NSString *const kGPUImageTwoInputTextureVertexShaderString = SHADER_STRING
     return rotatedSize; 
 }
 
+/** 需要两个 GPUImageOutput 的对象都调用 newFrameReadyAtTime 方法才行, 就是说因为只有个各自的两个 GPUImageOutput 对象都调用 newFrameReadyAtTime:atIndex: 方法 ,才能使 hasReceivedFirstFrame =  hasReceivedSecondFrame = YES, 这样流程才能走下去(两个GPUImageOutput对象 是指 [xxx addTarget:GPUImageTwoInputFilter], [xxx1 addTarget:GPUImageTwoInputFilter] 的两个对象) */
 - (void)newFrameReadyAtTime:(CMTime)frameTime atIndex:(NSInteger)textureIndex;
 {
     // You can set up infinite update loops, so this helps to short circuit them

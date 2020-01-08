@@ -2,9 +2,7 @@
 
 @implementation GPUImagePicture
 
-#pragma mark -
-#pragma mark Initialization and teardown
-
+// - MARK: <-- 初始化图片 -->
 - (id)initWithURL:(NSURL *)url;
 {
     NSData *imageData = [[NSData alloc] initWithContentsOfURL:url];
@@ -69,10 +67,11 @@
 }
 
 - (id)initWithImage:(UIImage *)newImageSource smoothlyScaleOutput:(BOOL)smoothlyScaleOutput removePremultiplication:(BOOL)removePremultiplication;
-{
+{ 
     return [self initWithCGImage:[newImageSource CGImage] smoothlyScaleOutput:smoothlyScaleOutput removePremultiplication:removePremultiplication];
 }
 
+// - MARK: <-- 初始化方法, 图片解压,  生成纹理 -->
 - (id)initWithCGImage:(CGImageRef)newImageSource smoothlyScaleOutput:(BOOL)smoothlyScaleOutput removePremultiplication:(BOOL)removePremultiplication;
 {
     if (!(self = [super init]))
@@ -80,25 +79,34 @@
 		return nil;
     }
     
+    // - 图片是否处理过
     hasProcessedImage = NO;
+    
+    // - 是否需要平稳的缩放
     self.shouldSmoothlyScaleOutput = smoothlyScaleOutput;
+    
+    /** 信号量 */
     imageUpdateSemaphore = dispatch_semaphore_create(0);
     dispatch_semaphore_signal(imageUpdateSemaphore);
 
-
     // TODO: Dispatch this whole thing asynchronously to move image loading off main thread
+    
+    // - 图片宽高
     CGFloat widthOfImage = CGImageGetWidth(newImageSource);
     CGFloat heightOfImage = CGImageGetHeight(newImageSource);
 
     // If passed an empty image reference, CGContextDrawImage will fail in future versions of the SDK.
     NSAssert( widthOfImage > 0 && heightOfImage > 0, @"Passed image must not be empty - it should be at least 1px tall and wide");
     
+    /** 纹理的像素尺寸 */
     pixelSizeOfImage = CGSizeMake(widthOfImage, heightOfImage);
     CGSize pixelSizeToUseForTexture = pixelSizeOfImage;
     
+    // - 是否需要使用coreGraphics重绘(如果平滑缩放了或者纹理尺寸超过了 OpenGLES 支持的最大尺寸, 则必然会重绘)
     BOOL shouldRedrawUsingCoreGraphics = NO;
     
     // For now, deal with images larger than the maximum texture size by resizing to be within that limit
+    // - 纹理尺寸和OpenGLES支持的最大纹理尺寸比较, 取合理的尺寸
     CGSize scaledImageSizeToFitOnGPU = [GPUImageContext sizeThatFitsWithinATextureForSize:pixelSizeOfImage];
     if (!CGSizeEqualToSize(scaledImageSizeToFitOnGPU, pixelSizeOfImage))
     {
@@ -107,6 +115,7 @@
         shouldRedrawUsingCoreGraphics = YES;
     }
     
+    // - 如果需要平稳的缩放 则调整宽高为 2 的幂次值;
     if (self.shouldSmoothlyScaleOutput)
     {
         // In order to use mipmaps, you need to provide power-of-two textures, so convert to the next largest power of two and stretch to fill
@@ -125,6 +134,7 @@
     BOOL alphaFirst = NO;
     BOOL premultiplied = NO;
 	
+    // - 不使用 coreGraphics 重绘
     if (!shouldRedrawUsingCoreGraphics) {
         /* Check that the memory layout is compatible with GL, as we cannot use glPixelStore to
          * tell GL about the memory layout with GLES.
@@ -136,14 +146,24 @@
             shouldRedrawUsingCoreGraphics = YES;
         } else {
             /* Check that the bitmap pixel format is compatible with GL */
+            // - bitmap 图片信息
             CGBitmapInfo bitmapInfo = CGImageGetBitmapInfo(newImageSource);
+            
+            // - 颜色分量是不是浮点型
             if ((bitmapInfo & kCGBitmapFloatComponents) != 0) {
                 /* We don't support float components for use directly in GL */
                 shouldRedrawUsingCoreGraphics = YES;
             } else {
+                
+                // - 像素格式的字节序(大端或者小端)
                 CGBitmapInfo byteOrderInfo = bitmapInfo & kCGBitmapByteOrderMask;
                 if (byteOrderInfo == kCGBitmapByteOrder32Little) {
                     /* Little endian, for alpha-first we can use this bitmap directly in GL */
+                    /**
+                     kCGImageAlphaPremultipliedFirst    :   ARGB(预乘alpha)
+                     kCGImageAlphaFirst                 :   ARGB
+                     kCGImageAlphaNoneSkipFirst         :   XRGB
+                     */
                     CGImageAlphaInfo alphaInfo = bitmapInfo & kCGBitmapAlphaInfoMask;
                     if (alphaInfo != kCGImageAlphaPremultipliedFirst && alphaInfo != kCGImageAlphaFirst &&
                         alphaInfo != kCGImageAlphaNoneSkipFirst) {
@@ -152,6 +172,17 @@
                 } else if (byteOrderInfo == kCGBitmapByteOrderDefault || byteOrderInfo == kCGBitmapByteOrder32Big) {
 					isLitteEndian = NO;
                     /* Big endian, for alpha-last we can use this bitmap directly in GL */
+                    /**
+                     kCGImageAlphaNone,                 :   RGB
+                     kCGImageAlphaPremultipliedLast,    :   RGBA(预乘alpha)
+                     kCGImageAlphaPremultipliedFirst,   :   ARGB(预乘alpha)
+                     kCGImageAlphaLast,                 :   RGBA
+                     kCGImageAlphaFirst,                :   ARGB
+                     kCGImageAlphaNoneSkipLast,         :   RGBX
+                     kCGImageAlphaNoneSkipFirst,        :   ARGBX
+                     kCGImageAlphaOnly                  :   A(没有颜色, 只有alpha)
+                     */
+
                     CGImageAlphaInfo alphaInfo = bitmapInfo & kCGBitmapAlphaInfoMask;
                     if (alphaInfo != kCGImageAlphaPremultipliedLast && alphaInfo != kCGImageAlphaLast &&
                         alphaInfo != kCGImageAlphaNoneSkipLast) {
@@ -168,16 +199,21 @@
     }
     
     //    CFAbsoluteTime elapsedTime, startTime = CFAbsoluteTimeGetCurrent();
-    
+    // - shouldRedrawUsingCoreGraphics = YES 就会先解压图片, 否则不会;
     if (shouldRedrawUsingCoreGraphics)
     {
         // For resized or incompatible image: redraw
+        // - 分配内存
         imageData = (GLubyte *) calloc(1, (int)pixelSizeToUseForTexture.width * (int)pixelSizeToUseForTexture.height * 4);
         
+        // - 色彩空间
         CGColorSpaceRef genericRGBColorspace = CGColorSpaceCreateDeviceRGB();
         
+        // - 创建图像上下文
         CGContextRef imageContext = CGBitmapContextCreate(imageData, (size_t)pixelSizeToUseForTexture.width, (size_t)pixelSizeToUseForTexture.height, 8, (size_t)pixelSizeToUseForTexture.width * 4, genericRGBColorspace,  kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
         //        CGContextSetBlendMode(imageContext, kCGBlendModeCopy); // From Technical Q&A QA1708: http://developer.apple.com/library/ios/#qa/qa1708/_index.html
+        
+        // - 将原始位图绘制到上下文中
         CGContextDrawImage(imageContext, CGRectMake(0.0, 0.0, pixelSizeToUseForTexture.width, pixelSizeToUseForTexture.height), newImageSource);
         CGContextRelease(imageContext);
         CGColorSpaceRelease(genericRGBColorspace);
@@ -188,11 +224,26 @@
     else
     {
         // Access the raw image bytes directly
+        // - CGImageGetDataProvider获取这个图片的数据源
+        // - CGDataProviderCopyData 从数据源获取直接解码的数据
         dataFromImageDataProvider = CGDataProviderCopyData(CGImageGetDataProvider(newImageSource));
         imageData = (GLubyte *)CFDataGetBytePtr(dataFromImageDataProvider);
     }
+    
+    /**
+     1、CGContextDrawImage方式（CoreGraphics）
+        使用 CGBitmapContextCreate 函数创建一个位图上下文；
+        使用 CGContextDrawImage 函数将原始位图绘制到上下文中；
+        使用 CGBitmapContextCreateImage 函数创建一张新的解压缩后的位图。
+     2、CGImageGetDataProvider方式（ImageIO）
+        使用 CGImageSourceCreateWithData(data) 创建ImageSource。
+        使用 CGImageSourceCreateImageAtIndex(source) 创建一个未解码的 CGImage。
+        使用 CGImageGetDataProvider(image) 获取这个图片的数据源。
+        使用 CGDataProviderCopyData(provider) 从数据源获取直接解码的数据。
+     */
 	
-	if (removePremultiplication && premultiplied) {
+    // - 如果需要移除移除预乘的 alpha 信息 并且色彩空间已经预乘了 alpha 信息,则 移除预乘的 alpha 信息
+    if (removePremultiplication && premultiplied) {
 		NSUInteger	totalNumberOfPixels = round(pixelSizeToUseForTexture.width * pixelSizeToUseForTexture.height);
 		uint32_t	*pixelP = (uint32_t *)imageData;
 		uint32_t	pixel;
@@ -249,15 +300,20 @@
     runSynchronouslyOnVideoProcessingQueue(^{
         [GPUImageContext useImageProcessingContext];
         
+        // - 从framebuffercache 中取 framebuffer
         outputFramebuffer = [[GPUImageContext sharedFramebufferCache] fetchFramebufferForSize:pixelSizeToUseForTexture onlyTexture:YES];
         [outputFramebuffer disableReferenceCounting];
 
+        // - 绑定纹理
         glBindTexture(GL_TEXTURE_2D, [outputFramebuffer texture]);
         if (self.shouldSmoothlyScaleOutput)
         {
+            // - 如果平滑的缩放 就设置 mipmap
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         }
         // no need to use self.outputTextureOptions here since pictures need this texture formats and type
+        
+        // - 生成纹理
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (int)pixelSizeToUseForTexture.width, (int)pixelSizeToUseForTexture.height, 0, format, GL_UNSIGNED_BYTE, imageData);
         
         if (self.shouldSmoothlyScaleOutput)
@@ -296,20 +352,19 @@
 #endif
 }
 
-#pragma mark -
-#pragma mark Image rendering
-
+// - MARK: <-- 纹理处理 -->
+/** 移除 target */
 - (void)removeAllTargets;
 {
     [super removeAllTargets];
     hasProcessedImage = NO;
 }
 
+/** 处理图片 */
 - (void)processImage;
 {
     [self processImageWithCompletionHandler:nil];
 }
-
 - (BOOL)processImageWithCompletionHandler:(void (^)(void))completion;
 {
     hasProcessedImage = YES;
@@ -321,7 +376,9 @@
         return NO;
     }
     
-    runAsynchronouslyOnVideoProcessingQueue(^{        
+    runAsynchronouslyOnVideoProcessingQueue(^{
+        
+        // - 传递 framebuffer 给 target 处理
         for (id<GPUImageInput> currentTarget in targets)
         {
             NSInteger indexOfObject = [targets indexOfObject:currentTarget];
@@ -343,6 +400,7 @@
     return YES;
 }
 
+// 由响应链的final filter生成UIImage图像
 - (void)processImageUpToFilter:(GPUImageOutput<GPUImageInput> *)finalFilterInChain withCompletionHandler:(void (^)(UIImage *processedImage))block;
 {
     [finalFilterInChain useNextFrameForImageCapture];
@@ -352,11 +410,13 @@
     }];
 }
 
+/** 输出的图片的大小 */
 - (CGSize)outputImageSize;
 {
     return pixelSizeOfImage;
 }
 
+/** 添加 target */
 - (void)addTarget:(id<GPUImageInput>)newTarget atTextureLocation:(NSInteger)textureLocation;
 {
     [super addTarget:newTarget atTextureLocation:textureLocation];

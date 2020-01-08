@@ -77,7 +77,9 @@ NSString *const kGPUImageThreeInputTextureVertexShaderString = SHADER_STRING
 
 #pragma mark -
 #pragma mark Rendering
-
+/**
+ 核心思路是 : 这个filter有三个inputimagebuffer, 然后有三个纹理采样器, 分别采样三个framebuffer 的渲染结果纹理, 然后将结果绘制到 outputFramebuffer 上
+ */
 - (void)renderToTextureWithVertices:(const GLfloat *)vertices textureCoordinates:(const GLfloat *)textureCoordinates;
 {
     if (self.preventRendering)
@@ -101,14 +103,17 @@ NSString *const kGPUImageThreeInputTextureVertexShaderString = SHADER_STRING
     glClearColor(backgroundColorRed, backgroundColorGreen, backgroundColorBlue, backgroundColorAlpha);
     glClear(GL_COLOR_BUFFER_BIT);
     
+    // - 激活第一个纹理采样器
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, [firstInputFramebuffer texture]);
 	glUniform1i(filterInputTextureUniform, 2);
     
+    // - 激活第二个纹理采样器
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, [secondInputFramebuffer texture]);
     glUniform1i(filterInputTextureUniform2, 3);
 
+    // - 激活第三个纹理采样器
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, [thirdInputFramebuffer texture]);
     glUniform1i(filterInputTextureUniform3, 4);
@@ -147,6 +152,7 @@ NSString *const kGPUImageThreeInputTextureVertexShaderString = SHADER_STRING
     }
 }
 
+/** 保存三个inputframebuffer */
 - (void)setInputFramebuffer:(GPUImageFramebuffer *)newInputFramebuffer atIndex:(NSInteger)textureIndex;
 {
     if (textureIndex == 0)

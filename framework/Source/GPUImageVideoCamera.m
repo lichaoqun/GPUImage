@@ -48,18 +48,31 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 
 @implementation GPUImageVideoCamera
 
+/** 视频输出的质量、大小的控制参数。如：AVCaptureSessionPreset640x480 */
 @synthesize captureSessionPreset = _captureSessionPreset;
+
+/** 会话对象 */
 @synthesize captureSession = _captureSession;
+
+/** 采集设备 */
 @synthesize inputCamera = _inputCamera;
+
+/** 实时日志输出 */
 @synthesize runBenchmark = _runBenchmark;
+
+/** 输出的 framebuffe 人的方向 */
 @synthesize outputImageOrientation = _outputImageOrientation;
+
+/** GPUImageVideoCameraDelegate 代理 */
 @synthesize delegate = _delegate;
+
+/** 水平镜像 */
 @synthesize horizontallyMirrorFrontFacingCamera = _horizontallyMirrorFrontFacingCamera, horizontallyMirrorRearFacingCamera = _horizontallyMirrorRearFacingCamera;
+
+/** 帧率 */
 @synthesize frameRate = _frameRate;
 
-#pragma mark -
-#pragma mark Initialization and teardown
-
+// - MARK: <-- 初始化方法 -->
 - (id)init;
 {
     if (!(self = [self initWithSessionPreset:AVCaptureSessionPreset640x480 cameraPosition:AVCaptureDevicePositionBack]))
@@ -77,11 +90,14 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 		return nil;
     }
     
+    // - 音视频处理线程
     cameraProcessingQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH,0);
 	audioProcessingQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW,0);
 
+    // - 渲染的信号量
     frameRenderingSemaphore = dispatch_semaphore_create(1);
 
+    // - 配置默认的参数
 	_frameRate = 0; // This will not set frame rate unless this value gets set to 1 or above
     _runBenchmark = NO;
     capturePaused = NO;
@@ -91,6 +107,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     _preferredConversion = kColorConversion709;
     
 	// Grab the back-facing or front-facing camera
+    // - 获取前后的相机
     _inputCamera = nil;
 	NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
 	for (AVCaptureDevice *device in devices) 
@@ -105,12 +122,15 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
         return nil;
     }
     
+    /** 创建并配置会话 */
 	// Create the capture session
 	_captureSession = [[AVCaptureSession alloc] init];
 	
     [_captureSession beginConfiguration];
     
-	// Add the video input	
+	// Add the video input
+    
+    // - video 输入对象
 	NSError *error = nil;
 	videoInput = [[AVCaptureDeviceInput alloc] initWithDevice:_inputCamera error:&error];
 	if ([_captureSession canAddInput:videoInput]) 
@@ -118,36 +138,39 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 		[_captureSession addInput:videoInput];
 	}
 	
+    // - vidoe 输出对象
 	// Add the video frame output	
 	videoOutput = [[AVCaptureVideoDataOutput alloc] init];
 	[videoOutput setAlwaysDiscardsLateVideoFrames:NO];
     
+    // - 设置输出的像素格式 如果判断条件成立 设置像素格式为 YUV, 否者设置像素格式为 RGBA;
 //    if (captureAsYUV && [GPUImageContext deviceSupportsRedTextures])
     if (captureAsYUV && [GPUImageContext supportsFastTextureUpload])
     {
         BOOL supportsFullYUVRange = NO;
+        
+        // - 遍历所有支持的像素格式
         NSArray *supportedPixelFormats = videoOutput.availableVideoCVPixelFormatTypes;
         for (NSNumber *currentPixelFormat in supportedPixelFormats)
         {
+            // - 如果支持 kCVPixelFormatType_420YpCbCr8BiPlanarFullRange 代表支持 FullYUVRange
             if ([currentPixelFormat intValue] == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)
             {
                 supportsFullYUVRange = YES;
             }
         }
         
+        // - 如果支持 FullYUVRange, 设置输出的像素格式为 kCVPixelFormatType_420YpCbCr8BiPlanarFullRange 否则设置输出的像素格式为 kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         if (supportsFullYUVRange)
         {
             [videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
             isFullYUVRange = YES;
-        }
-        else
-        {
+        }else{
             [videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
             isFullYUVRange = NO;
         }
-    }
-    else
-    {
+    }else{
+        
         [videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_32BGRA] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
     }
     
@@ -162,6 +185,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
             //            }
             //            else
             //            {
+            // - 如果 isFullYUVRange 设置 fragmentShaderString 为 kGPUImageYUVFullRangeConversionForLAFragmentShaderString 否则设置 shader 为 kGPUImageYUVVideoRangeConversionForLAFragmentShaderString
             if (isFullYUVRange)
             {
                 yuvConversionProgram = [[GPUImageContext sharedImageProcessingContext] programForVertexShaderString:kGPUImageVertexShaderString fragmentShaderString:kGPUImageYUVFullRangeConversionForLAFragmentShaderString];
@@ -173,6 +197,10 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 
             //            }
             
+            /**
+             initialized 字段, 如果这个 shader link过, initialized值为 YES, 否则 initialized 值为 NO;
+             这里的 initialized 字段, 在 displayProgram 的初始化中, 值为 NO, 在调用 link 后值为 YES;
+             */
             if (!yuvConversionProgram.initialized)
             {
                 [yuvConversionProgram addAttribute:@"position"];
@@ -191,19 +219,22 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
                 }
             }
             
+            // - 获取顶点着色器的通用属性
             yuvConversionPositionAttribute = [yuvConversionProgram attributeIndex:@"position"];
             yuvConversionTextureCoordinateAttribute = [yuvConversionProgram attributeIndex:@"inputTextureCoordinate"];
             yuvConversionLuminanceTextureUniform = [yuvConversionProgram uniformIndex:@"luminanceTexture"];
             yuvConversionChrominanceTextureUniform = [yuvConversionProgram uniformIndex:@"chrominanceTexture"];
             yuvConversionMatrixUniform = [yuvConversionProgram uniformIndex:@"colorConversionMatrix"];
             
+            // - 激活shaderprogram
             [GPUImageContext setActiveShaderProgram:yuvConversionProgram];
             
+            // - 开启顶点属性
             glEnableVertexAttribArray(yuvConversionPositionAttribute);
             glEnableVertexAttribArray(yuvConversionTextureCoordinateAttribute);
         }
     });
-    
+    // - 设置代理
     [videoOutput setSampleBufferDelegate:self queue:cameraProcessingQueue];
 	if ([_captureSession canAddOutput:videoOutput])
 	{
@@ -231,11 +262,13 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 	return self;
 }
 
+/** 输出的 framebuffer */
 - (GPUImageFramebuffer *)framebufferForOutput;
 {
     return outputFramebuffer;
 }
 
+/** 释放 */
 - (void)dealloc 
 {
     [self stopCameraCapture];
@@ -253,6 +286,8 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 #endif
 }
 
+// - MARK: <-- 音频的输入和输出 -->
+/** 设置音频的输入和输出 */
 - (BOOL)addAudioInputsAndOutputs
 {
     if (audioOutput)
@@ -282,6 +317,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     return YES;
 }
 
+/** 移除音频的输入和输出 */
 - (BOOL)removeAudioInputsAndOutputs
 {
     if (!audioOutput)
@@ -297,6 +333,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     return YES;
 }
 
+/** 移除所有的输入和输出(音视频) */
 - (void)removeInputsAndOutputs;
 {
     [_captureSession beginConfiguration];
@@ -317,9 +354,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     [_captureSession commitConfiguration];
 }
 
-#pragma mark -
-#pragma mark Managing targets
-
+// - MARK: <-- GPUImageOutput 的方法 -->
 - (void)addTarget:(id<GPUImageInput>)newTarget atTextureLocation:(NSInteger)textureLocation;
 {
     [super addTarget:newTarget atTextureLocation:textureLocation];
@@ -327,14 +362,14 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     [newTarget setInputRotation:outputRotation atIndex:textureLocation];
 }
 
-#pragma mark -
-#pragma mark Manage the camera video stream
-
+// - MARK: <-- 视频捕获 -->
+/** camera 的状态 */
 - (BOOL)isRunning;
 {
     return [_captureSession isRunning];
 }
 
+/** 开始捕捉 */
 - (void)startCameraCapture;
 {
     if (![_captureSession isRunning])
@@ -344,6 +379,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 	};
 }
 
+/** 停止捕获 */
 - (void)stopCameraCapture;
 {
     if ([_captureSession isRunning])
@@ -352,16 +388,19 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     }
 }
 
+/** 暂停捕捉 */
 - (void)pauseCameraCapture;
 {
     capturePaused = YES;
 }
 
+/** 重新开始捕捉 */
 - (void)resumeCameraCapture;
 {
     capturePaused = NO;
 }
 
+/** 切换前后摄像头 */
 - (void)rotateCamera
 {
 	if (self.frontFacingCameraPresent == NO)
@@ -413,11 +452,13 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     [self setOutputImageOrientation:_outputImageOrientation];
 }
 
+/** 获取摄像头方向 */
 - (AVCaptureDevicePosition)cameraPosition 
 {
     return [[videoInput device] position];
 }
 
+/** 是不是后置摄像头 */
 + (BOOL)isBackFacingCameraPresent;
 {
 	NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
@@ -430,12 +471,12 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 	
 	return NO;
 }
-
 - (BOOL)isBackFacingCameraPresent
 {
     return [GPUImageVideoCamera isBackFacingCameraPresent];
 }
 
+/** 是不是前置摄像头 */
 + (BOOL)isFrontFacingCameraPresent;
 {
 	NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
@@ -448,12 +489,12 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 	
 	return NO;
 }
-
 - (BOOL)isFrontFacingCameraPresent
 {
     return [GPUImageVideoCamera isFrontFacingCameraPresent];
 }
 
+/** 配置相机的会话 */
 - (void)setCaptureSessionPreset:(NSString *)captureSessionPreset;
 {
 	[_captureSession beginConfiguration];
@@ -464,6 +505,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 	[_captureSession commitConfiguration];
 }
 
+/** 设置帧的旋转角度 */
 - (void)setFrameRate:(int32_t)frameRate;
 {
 	_frameRate = frameRate;
@@ -477,6 +519,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
             [_inputCamera lockForConfiguration:&error];
             if (error == nil) {
 #if defined(__IPHONE_7_0)
+                // - 设置帧率的最大值的最小值
                 [_inputCamera setActiveVideoMinFrameDuration:CMTimeMake(1, _frameRate)];
                 [_inputCamera setActiveVideoMaxFrameDuration:CMTimeMake(1, _frameRate)];
 #endif
@@ -532,11 +575,13 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 	}
 }
 
+/** 获取帧的旋转的角度 */
 - (int32_t)frameRate;
 {
 	return _frameRate;
 }
 
+/** 视频连接 */
 - (AVCaptureConnection *)videoCaptureConnection {
     for (AVCaptureConnection *connection in [videoOutput connections] ) {
 		for ( AVCaptureInputPort *port in [connection inputPorts] ) {
@@ -550,7 +595,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
 }
 
 #define INITIALFRAMESTOIGNOREFORBENCHMARK 5
-
+/** 设置 target 的inputbuffer, 并让 target 开始渲染(就是让 target 开始渲染) */
 - (void)updateTargetsForVideoCameraUsingCacheTextureAtWidth:(int)bufferWidth height:(int)bufferHeight time:(CMTime)currentTime;
 {
     // First, update all the framebuffers in the targets
@@ -606,6 +651,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     }
 }
 
+/** 处理捕捉到的每一帧画面 */
 - (void)processVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 {
     if (capturePaused)
@@ -613,10 +659,15 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
         return;
     }
     
+    // - 视频帧
     CFAbsoluteTime startTime = CFAbsoluteTimeGetCurrent();
     CVImageBufferRef cameraFrame = CMSampleBufferGetImageBuffer(sampleBuffer);
+    
+    // - 视频的宽和高
     int bufferWidth = (int) CVPixelBufferGetWidth(cameraFrame);
     int bufferHeight = (int) CVPixelBufferGetHeight(cameraFrame);
+    
+    // - 帧格式
     CFTypeRef colorAttachments = CVBufferGetAttachment(cameraFrame, kCVImageBufferYCbCrMatrixKey, NULL);
     if (colorAttachments != NULL)
     {
@@ -648,6 +699,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
         }
     }
 
+    // - 开始OpenGLES的处理 绑定生成纹理
 	CMTime currentTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
 
     [GPUImageContext useImageProcessingContext];
@@ -670,6 +722,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
             
             CVReturn err;
             // Y-plane
+            // - y 分量
             glActiveTexture(GL_TEXTURE4);
             if ([GPUImageContext deviceSupportsRedTextures])
             {
@@ -690,7 +743,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             
-            // UV-plane
+            // - uv 分量
             glActiveTexture(GL_TEXTURE5);
             if ([GPUImageContext deviceSupportsRedTextures])
             {
@@ -713,7 +766,8 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
             
 //            if (!allTargetsWantMonochromeData)
 //            {
-                [self convertYUVToRGBOutput];
+            // - 生成 outputframebuffer 
+            [self convertYUVToRGBOutput];
 //            }
 
             int rotatedImageBufferWidth = bufferWidth, rotatedImageBufferHeight = bufferHeight;
@@ -724,6 +778,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
                 rotatedImageBufferHeight = bufferWidth;
             }
             
+            // - 实现链式设置滤镜的方法
             [self updateTargetsForVideoCameraUsingCacheTextureAtWidth:rotatedImageBufferWidth height:rotatedImageBufferHeight time:currentTime];
             
             CVPixelBufferUnlockBaseAddress(cameraFrame, 0);
@@ -810,6 +865,7 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     [self.audioEncodingTarget processAudioBuffer:sampleBuffer]; 
 }
 
+/** 生成 outputframebuffer(outputframebuffer 已经将纹理和 framebuffer 绑定到一起了), 并将结果纹理绘制到 framebuffer 中 */
 - (void)convertYUVToRGBOutput;
 {
     [GPUImageContext setActiveShaderProgram:yuvConversionProgram];
@@ -848,6 +904,8 @@ void setColorConversion709( GLfloat conversionMatrix[9] )
     glVertexAttribPointer(yuvConversionPositionAttribute, 2, GL_FLOAT, 0, 0, squareVertices);
 	glVertexAttribPointer(yuvConversionTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, [GPUImageFilter textureCoordinatesForRotation:internalRotation]);
     
+    
+    // - glDrawArrays  将结果绘制到 framebuffer 中
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
