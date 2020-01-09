@@ -14,21 +14,14 @@
 @interface ViewController ()
 // - MARK: <-- 默认的设置 -->
 @property (nonatomic, copy) void(^valueChanged)(UISlider *slider);
-
-/** <#注释#> */
 @property (nonatomic, strong) GPUImageView *imageView;
-
-/** <#注释#> */
 @property (nonatomic, strong) UISlider *slider;
-
 
 // - MARK: <-- 简单使用 GPUImageVideoCamera  -->
 @property (nonatomic, strong) GPUImageVideoCamera *camera;
 
-
-// - MARK: <-- GPUImageFilterGroup -->
+// - MARK: <-- 简单使用 GPUImageFilterGroup -->
 @property (nonatomic, strong) GPUImageFilterGroup *myFilterGroup;
-
 
 // - MARK: <-- 简单使用 GPUImageMovie -->
 @property(nonatomic, strong)GPUImageMovie *movie;
@@ -113,7 +106,7 @@
     [movieWriter startRecording];
 }
 
-// - MARK: <-- GPUImageFilterGroup -->
+// - MARK: <-- 简单使用 GPUImageFilterGroup -->
 -(void)test3{
      //加载一个UIImage对象
     UIImage *image = [UIImage imageNamed:@"gyy"];
@@ -160,7 +153,7 @@
      */
 
 }
-// - MARK: <-- GPUImageUIElement -->
+// - MARK: <-- 简单使用 GPUImageUIElement -->
 -(void)test4{
     UILabel *lab = [[UILabel alloc] initWithFrame:CGRectMake(100, 480, 120, 20)];
     lab.text = @"滤镜信息";
@@ -222,6 +215,7 @@
     [movie startProcessing];
 }
 
+// - MARK: <-- viewDidLoad 方法调用 -->
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self defaultSetting];
