@@ -135,7 +135,6 @@
 
 - (void)addGPUImageFilter:(GPUImageFilter *)filter{
     [self.myFilterGroup addFilter:filter];
-    
     [self.myFilterGroup addTarget:filter];
     self.myFilterGroup.terminalFilter = filter;
     if (!self.myFilterGroup.initialFilters){
@@ -219,8 +218,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self defaultSetting];
-    
-    [self test5];
+    [self test4];
 }
 
 @end

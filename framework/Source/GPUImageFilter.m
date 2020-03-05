@@ -313,6 +313,8 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
     [GPUImageContext setActiveShaderProgram:filterProgram];
 
     outputFramebuffer = [[GPUImageContext sharedFramebufferCache] fetchFramebufferForSize:[self sizeOfFBO] textureOptions:self.outputTextureOptions onlyTexture:NO];
+    
+    // - 激活 outputFramebuffer 中的 framebuffer
     [outputFramebuffer activateFramebuffer];
     if (usingNextFrameForImageCapture)
     {
@@ -329,13 +331,15 @@ NSString *const kGPUImagePassthroughFragmentShaderString = SHADER_STRING
 	glActiveTexture(GL_TEXTURE2);
     GLuint texture = [firstInputFramebuffer texture];
 	glBindTexture(GL_TEXTURE_2D, texture);
+    
+    // - 将 filterInputTextureUniform 的索引坐标绑定为2;  filterInputTextureUniform = [filterProgram uniformIndex:@"inputImageTexture"]; 
 	glUniform1i(filterInputTextureUniform, 2);
 
     // - 设置顶点数据解析方式
     glVertexAttribPointer(filterPositionAttribute, 2, GL_FLOAT, 0, 0, vertices);
 	glVertexAttribPointer(filterTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, textureCoordinates);
 
-    // - 开始渲染
+    // - 开始渲染 将 firstInputFramebuffer 的渲染的结果绘制到 outputFramebuffer 的 framebuffer 中, 这行代码之后, outputFramebuffer 中的 texture 绘制的就是之前的所有美颜效果的集合;
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     [firstInputFramebuffer unlock];

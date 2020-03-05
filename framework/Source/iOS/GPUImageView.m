@@ -426,7 +426,7 @@
         // - 根据要求绘制顶点
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         
-        // - 将绘制结果呈现到屏幕上
+        // - 将帧缓冲的数据呈现到屏幕上
         [self presentFramebuffer];
         
         [inputFramebufferForDisplay unlock];
