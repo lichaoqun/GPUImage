@@ -192,6 +192,7 @@
 		343ACA8823869F0C001A6543 /* lookup.png in Resources */ = {isa = PBXBuildFile; fileRef = 343AC9CE23869F0B001A6543 /* lookup.png */; };
 		343ACA8923869F0C001A6543 /* lookup_amatorka.png in Resources */ = {isa = PBXBuildFile; fileRef = 343AC9CF23869F0B001A6543 /* lookup_amatorka.png */; };
 		343ACA8A23869F0C001A6543 /* lookup_miss_etikate.png in Resources */ = {isa = PBXBuildFile; fileRef = 343AC9D023869F0B001A6543 /* lookup_miss_etikate.png */; };
+		D029419B24272705006EB33F /* zhdpyzsb.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = D029419A24272705006EB33F /* zhdpyzsb.mp4 */; };
 		D03472B023C4E41B00B90F80 /* example.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = D03472AF23C4E41B00B90F80 /* example.mp4 */; };
 /* End PBXBuildFile section */
 
@@ -578,6 +579,7 @@
 		343AC9CE23869F0B001A6543 /* lookup.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lookup.png; sourceTree = "<group>"; };
 		343AC9CF23869F0B001A6543 /* lookup_amatorka.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lookup_amatorka.png; sourceTree = "<group>"; };
 		343AC9D023869F0B001A6543 /* lookup_miss_etikate.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = lookup_miss_etikate.png; sourceTree = "<group>"; };
+		D029419A24272705006EB33F /* zhdpyzsb.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = zhdpyzsb.mp4; sourceTree = "<group>"; };
 		D03472AF23C4E41B00B90F80 /* example.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = example.mp4; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -623,6 +625,7 @@
 				343AC84C23869EEB001A6543 /* Assets.xcassets */,
 				343AC84E23869EEB001A6543 /* LaunchScreen.storyboard */,
 				343AC85123869EEB001A6543 /* Info.plist */,
+				D029419A24272705006EB33F /* zhdpyzsb.mp4 */,
 				D03472AF23C4E41B00B90F80 /* example.mp4 */,
 				343AC85223869EEB001A6543 /* main.m */,
 			);
@@ -1105,6 +1108,7 @@
 				D03472B023C4E41B00B90F80 /* example.mp4 in Resources */,
 				343ACA8A23869F0C001A6543 /* lookup_miss_etikate.png in Resources */,
 				343AC84B23869EEA001A6543 /* Main.storyboard in Resources */,
+				D029419B24272705006EB33F /* zhdpyzsb.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

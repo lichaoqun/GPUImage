@@ -214,11 +214,54 @@
     [movie startProcessing];
 }
 
+// - 给视频加水印
+-(void)test7{
+    __block int  i = 0;
+    NSURL *videoPath = [[NSBundle mainBundle] URLForResource:@"zhdpyzsb" withExtension:@"mp4" subdirectory:nil];
+    GPUImageMovie *movie = [[GPUImageMovie alloc]initWithURL:videoPath];
+    movie.playAtActualSpeed = YES;
+    self.movie = movie;
+    
+    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(self.imageView.frame.size.width - 100, 0, 100, 100)];
+    label.font = [UIFont systemFontOfSize:20];
+    label.textColor = [UIColor redColor];
+    label.backgroundColor = [UIColor clearColor];
+    UIView *view = [[UIView alloc] initWithFrame:self.view.bounds];
+    [view addSubview:label];
+    GPUImageUIElement *elementFilter = [[GPUImageUIElement alloc]initWithView:view];
+
+    GPUImageNormalBlendFilter *blendFilter = [[GPUImageNormalBlendFilter alloc] init];
+    GPUImageFilter* progressFilter = [[GPUImageFilter alloc] init];
+
+    [movie addTarget:progressFilter];
+    [progressFilter addTarget:blendFilter];
+    [elementFilter addTarget:blendFilter];
+    [blendFilter addTarget:self.imageView];
+    
+    [NSTimer scheduledTimerWithTimeInterval:1 repeats:YES block:^(NSTimer * _Nonnull timer) {
+        i++;
+        label.text = [NSString stringWithFormat:@"[%02d : %02d]", i / 60, i % 60];
+    }];
+
+    [progressFilter setFrameProcessingCompletionBlock:^(GPUImageOutput *output, CMTime time) {
+        [elementFilter updateWithTimestamp:time];
+    }];
+    
+    
+    // - 本地录制
+    NSString *path = [NSHomeDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"Documents/ZBMovied%u.mp4", arc4random() % 1000]];
+    GPUImageMovieWriter *movieWriter = [[GPUImageMovieWriter alloc] initWithMovieURL:[NSURL fileURLWithPath:path] size:CGSizeMake(1024, 576) fileType:AVFileTypeMPEG4 outputSettings:nil];
+    [blendFilter addTarget:movieWriter];
+    [movie startProcessing];
+    [movieWriter startRecording];
+}
+
+
 // - MARK: <-- viewDidLoad 方法调用 -->
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self defaultSetting];
-    [self test4];
+    [self test7];
 }
 
 @end
